@@ -65,12 +65,19 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
     model = io.read_any_model(morfessor_model)
     out_f = open(out_fp, "w")
     for token, label in zip(tokens, labels):
-        new_labels = [f"__label__{l}" for l in label]
+        # new_labels = [f"__label__{l}" for l in label]
+
+        new_labels = [f"{l}" for l in label]
         new_labels.sort()
+        if len(new_labels) == 0:
+            continue
         str_lab = " ".join(new_labels)
+        lemma = token[0]
         token = token[1]
         t = mu.segment_token(model, token)
-        ln = f"{str_lab}\t{t}\n"
+        l = mu.segment_token(model, lemma)
+        # ln = f"{str_lab}\t{t}\n"
+        ln = f"{l}\t{t}\t{str_lab}\n"
         out_f.write(ln)
 
     out_f.close()

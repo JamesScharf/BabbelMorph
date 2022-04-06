@@ -48,9 +48,11 @@ def make_dictionary(align_fp, bitext_fp):
     for k, v in dictionary.items():
         for tgt_w, count in v.items():
             editdist = ed.eval(k, tgt_w)
-            if editdist < 3 and len(src_w) >= 3 and len(tgt_w) >= 3:  # arbitrary value
+            if count > 7:
+                # if editdist < 3 and len(src_w) >= 3 and len(tgt_w) >= 3:  # arbitrary value
                 passing += 1
                 print(f"{k}\t{tgt_w}")
+                print(editdist)
 
 
 if __name__ == "__main__":

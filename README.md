@@ -12,3 +12,5 @@ Steps are:
     c. Obtain each word alignment, keeping only words that have low edit distance.
 
 3. Plug fastText embeddings and seed dictionary into vecmap to obtain bilingual embeddings.
+
+4. [Not done] 

@@ -28,7 +28,7 @@ from tqdm import tqdm
 
 def proc_ln(ln):
     splt_ln = ln.split()
-    morphs = [mu.segment_token(model, t) + "\t" + t for t in splt_ln]
+    morphs = [mu.segment_token(model, t) for t in splt_ln]
     return " ".join(morphs) + "\n"
 
 
