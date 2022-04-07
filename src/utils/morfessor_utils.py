@@ -19,7 +19,7 @@ def segment_token(model, token):
     #    new_t.append(new_morph)
     # t = " ".join(new_t)
     if len(t) >= 2:
-        t = "".join(t[0:-2]) + "__" + t[-2] + "__" + t[-1]
+        t = t[-2] + "__" + t[-1]
     else:
-        t = "".join(t[0:-1]) + "__" + t[-1]
+        t = "__" + t[-1]
     return t

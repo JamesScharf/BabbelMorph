@@ -7,6 +7,11 @@ cd ..
 mkdir -p vecmap
 git clone https://github.com/artetxem/vecmap.git
 
+git clone https://github.com/antonisa/lang2vec.git
+cd lang2vec
+python3 setup.py install
+cd ..
+
 conda create --name babbel
 conda activate babbel
 

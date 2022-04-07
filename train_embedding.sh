@@ -11,12 +11,12 @@ MODEL_OUTPUT_VEC=./data/embedding_models/$ISO3.vec
 python3 ./src/utils/prep_embed.py "${ISO3}" "${TRAIN_TEXT_FP}"
 
 # use morfessor to segment
-#if test -f "$MORFESSOR_MODEL"; then
-#    echo "$MORFESSOR_MODEL already exists"
-#else
+if test -f "$MORFESSOR_MODEL"; then
+    echo "$MORFESSOR_MODEL already exists"
+else
     echo "Training morfessor model..."
     morfessor -t $TRAIN_TEXT_FP -S $MORFESSOR_MODEL --lowercase --output-newlines -d ones --morph-length 2
-#fi
+fi
 
 # segment text
 #echo "Applying morfessor model to text..."

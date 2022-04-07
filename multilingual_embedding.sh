@@ -40,7 +40,7 @@ TGT_MORFESSOR_MODEL=./data/morfessor_models/$TGT
 
 
 # unimorph data split
-python3 ./src/utils/data_split.py "${RAW_UNIMORPH}"  "${SQASHED_UNIMORPH}" "$TRAIN_UNIMORPH" "$VALID_UNIMORPH" "$TEST_UNIMORPH" "${SRC_MORFESSOR_MODEL}"
+#python3 ./src/utils/data_split.py "${RAW_UNIMORPH}"  "${SQASHED_UNIMORPH}" "$TRAIN_UNIMORPH" "$VALID_UNIMORPH" "$TEST_UNIMORPH" "${SRC_MORFESSOR_MODEL}"
 #python3 src/utils/make_parallel_corpus.py --fp "${BITEXT}" --src "${SRC}" --tgt "${TGT}" \
 #    --src_morf_model "${SRC_MORFESSOR_MODEL}" --tgt_morf_model "${TGT_MORFESSOR_MODEL}"
 #./fast_align/build/fast_align -i $BITEXT -v -d -o -I 5 -p $FORWARD_PARAMS > $FORWARD_ALIGN 
@@ -50,14 +50,31 @@ echo "Done with reverse align"
 #./fast_align/build/atools -i $FORWARD_ALIGN -j $REV_ALIGN -c intersect > $SYM_ALIGN
 echo "Done with atools intersect"
 
-#python3 ./src/dictionary/dictionary_extraction.py \
-#    --align_fp $SYM_ALIGN \
-#    --bitext_fp $BITEXT \
-#    > $TRAIN_DICT
+python3 ./src/dictionary/dictionary_extraction.py \
+    --align_fp $SYM_ALIGN \
+    --bitext_fp $BITEXT \
+    > $TRAIN_DICT
 echo "Wrote minimal seed dictionary to ${TRAIN_DICT}"
 
 
 # output folder
 OUTPUT_FOLDER=./data/crosslingual_embeddings/"${SRC}_${TGT}"
 mkdir -p $OUTPUT_FOLDER
-#python3 ./vecmap/map_embeddings.py --semi_supervised $TRAIN_DICT $SRC_EMB $TGT_EMB $SRC_MAPPED $TGT_MAPPED --cuda -v
+python3 ./vecmap/map_embeddings.py --semi_supervised $TRAIN_DICT $SRC_EMB $TGT_EMB $SRC_MAPPED $TGT_MAPPED --cuda -v
+
+mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}"/
+CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}"/$SRC
+CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}"/$TGT
+
+python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
+    "${OUTPUT_FOLDER}/${SRC}.vec" "${SRC}" "${SRC_MORFESSOR_MODEL}" \
+    >  $CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS
+
+python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
+    "${OUTPUT_FOLDER}/${TGT}.vec" "${TGT}" "${TGT_MORFESSOR_MODEL}" \
+    >  $CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS
+
+echo "Converted crosslingual embeddings to token (as opposed to suffix) format"
+set -x
+python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
+set +x

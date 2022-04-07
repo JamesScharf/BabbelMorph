@@ -47,12 +47,33 @@ def make_dictionary(align_fp, bitext_fp):
     passing = 0
     for k, v in dictionary.items():
         for tgt_w, count in v.items():
-            editdist = ed.eval(k, tgt_w)
-            if count > 7:
-                # if editdist < 3 and len(src_w) >= 3 and len(tgt_w) >= 3:  # arbitrary value
-                passing += 1
-                print(f"{k}\t{tgt_w}")
-                print(editdist)
+            editdist = dual_edit_dist(k, tgt_w)
+            if (
+                editdist < 2
+            ):  # and len(src_w) >= 3 and len(tgt_w) >= 3:  # arbitrary value
+
+                if len(k) == 1 and len(tgt_w) == 1 and k != tgt_w:
+                    continue
+
+                if count > 5:
+                    passing += 1
+                    print(f"{k}\t{tgt_w}")
+
+
+def dual_edit_dist(suff1, suff2, back_w=1.5):
+
+    suff1 = suff1.split("__")
+    suff2 = suff2.split("__")
+    if len(suff1) == 0 or len(suff2) == 0:
+        return 1000
+
+    d1 = ed.distance(suff1[0], suff2[0])
+
+    if len(suff1) == 1 or len(suff2) == 1:
+        return d1
+    d2 = ed.distance(suff1[1], suff2[1]) * back_w
+    avg = (d1 + d2) / 2
+    return avg
 
 
 if __name__ == "__main__":
