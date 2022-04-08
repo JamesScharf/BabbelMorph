@@ -12,6 +12,7 @@ sys.path.insert(1, "./src/utils")
 from tqdm import tqdm
 import morfessor_utils as mu
 from sklearn.neighbors import NearestNeighbors
+import ray
 
 
 def load_bilingual_embed(fp: str) -> Dict[str, List[float]]:
@@ -55,7 +56,6 @@ def get_token_embedding(
 
     str_embds = [str(x) for x in suffix_embedding]
     str_em = " ".join(str_embds)
-    print(f"{token} {str_em}")
     return suffix_embedding
 
 
