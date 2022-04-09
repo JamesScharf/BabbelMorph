@@ -1,11 +1,17 @@
 SRC=$1
 TGT=$2
 
-RAW_UNIMORPH=./data/unimorph/raw/$SRC.txt
-TEST_UNIMORPH=./data/unimorph/test/$SRC
-VALID_UNIMORPH=./data/unimorph/valid/$SRC
-TRAIN_UNIMORPH=./data/unimorph/train/$SRC
-SQASHED_UNIMORPH=./data/unimorph/combined_raw/$SRC
+RAW_UNIMORPH_SRC=./data/unimorph/raw/$SRC.txt
+TEST_UNIMORPH_SRC=./data/unimorph/test/$SRC
+VALID_UNIMORPH_SRC=./data/unimorph/valid/$SRC
+TRAIN_UNIMORPH_SRC=./data/unimorph/train/$SRC
+SQASHED_UNIMORPH_SRC=./data/unimorph/combined_raw/$SRC
+
+RAW_UNIMORPH_TGT=./data/unimorph/raw/$TGT.txt
+TEST_UNIMORPH_TGT=./data/unimorph/test/$TGT
+VALID_UNIMORPH_TGT=./data/unimorph/valid/$TGT
+TRAIN_UNIMORPH_TGT=./data/unimorph/train/$TGT
+SQASHED_UNIMORPH_TGT=./data/unimorph/combined_raw/$TGT
 
 SRC_CLASSIFIER_OUT=./data/embedding_models/$SRC
 
@@ -40,7 +46,9 @@ TGT_MORFESSOR_MODEL=./data/morfessor_models/$TGT
 
 
 # unimorph data split
-#python3 ./src/utils/data_split.py "${RAW_UNIMORPH}"  "${SQASHED_UNIMORPH}" "$TRAIN_UNIMORPH" "$VALID_UNIMORPH" "$TEST_UNIMORPH" "${SRC_MORFESSOR_MODEL}"
+python3 ./src/utils/data_split.py "${RAW_UNIMORPH_SRC}"  "${SQASHED_UNIMORPH_SRC}" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_MORFESSOR_MODEL}"
+python3 ./src/utils/data_split.py "${RAW_UNIMORPH_TGT}"  "${SQASHED_UNIMORPH_TGT}" "$TRAIN_UNIMORPH_TGT" "$VALID_UNIMORPH_TGT" "$TEST_UNIMORPH_TGT" "${TGT_MORFESSOR_MODEL}"
+
 #python3 src/utils/make_parallel_corpus.py --fp "${BITEXT}" --src "${SRC}" --tgt "${TGT}" \
 #    --src_morf_model "${SRC_MORFESSOR_MODEL}" --tgt_morf_model "${TGT_MORFESSOR_MODEL}"
 #./fast_align/build/fast_align -i $BITEXT -v -d -o -I 5 -p $FORWARD_PARAMS > $FORWARD_ALIGN 
@@ -82,5 +90,5 @@ set -x
 #python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
 set +x
 
-python3 ./src/nearest_neighbors/data_transformers.py "${CROSSLINGUAL_SRC_SUFFIX_EMBEDDINGS}" "${CROSSLINGUAL_TGT_SUFFIX_EMBEDDINGS}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL"
+python3 ./src/nearest_neighbors/classifiers.py "${CROSSLINGUAL_SRC_SUFFIX_EMBEDDINGS}" "${CROSSLINGUAL_TGT_SUFFIX_EMBEDDINGS}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" --tgt_unimorph_test_fp "$TRAIN_UNIMORPH_TGT"
 

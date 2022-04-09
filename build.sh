@@ -1,5 +1,11 @@
 # A file for building the project
 
+# LightGBM
+pip install catboost
+pip install ipywidgets
+jupyter nbextension enable --py widgetsnbextension
+
+
 git clone https://github.com/facebookresearch/fastText.git
 cd fastText
 make

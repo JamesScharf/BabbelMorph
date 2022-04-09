@@ -34,7 +34,10 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
 
         lemma = splt_ln[0]
         token = splt_ln[1]
-        labels = splt_ln[2].split(";")
+        try:
+            labels = splt_ln[2].split(";")
+        except:
+            continue
 
         new_labels = []
         for l in labels:
@@ -74,10 +77,10 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
         str_lab = " ".join(new_labels)
         lemma = token[0]
         token = token[1]
-        t = mu.segment_token(model, token)
-        l = mu.segment_token(model, lemma)
+        # t = mu.segment_token(model, token)
+        # l = mu.segment_token(model, lemma)
         # ln = f"{str_lab}\t{t}\n"
-        ln = f"{l}\t{t}\t{str_lab}\n"
+        ln = f"{lemma}\t{token}\t{str_lab}\n"
         out_f.write(ln)
 
     out_f.close()
@@ -110,16 +113,15 @@ def data_split(
             test_f.write(header)
             valid_f.write(header)
         else:
-
             lemma = ln.split("\t")[0]
             r = random.uniform(0, 1)
-            if lemma in train_lemma:
-                train_f.write(ln)
-            elif lemma in valid_lemma:
-                valid_f.write(ln)
-            elif lemma in valid_lemma:
-                test_f.write(ln)
-            elif r < 0.7:  # Train
+            # if lemma in train_lemma:
+            #    train_f.write(ln)
+            # elif lemma in valid_lemma:
+            #    valid_f.write(ln)
+            # elif lemma in valid_lemma:
+            #    test_f.write(ln)
+            if r < 0.7:  # Train
                 train_f.write(ln)
                 train_lemma.add(lemma)
             elif r >= 0.7 and r <= 0.8:  # valid

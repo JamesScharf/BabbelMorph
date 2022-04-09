@@ -3,9 +3,8 @@ from typing import List
 from sklearn.base import BaseEstimator, TransformerMixin
 import sys
 
-import morfessor_utils as mu
 import argparse
-from joblib import Parallel, delayed
+from tqdm import tqdm
 
 
 class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
@@ -13,16 +12,16 @@ class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
         self,
         src_morf_model_fp: str,
         tgt_morf_model_fp: str,
-        src_bilingual_embed_fp: str,
-        tgt_bilingual_embed_fp: str,
+        src_suffix_bilingual_embed_fp: str,
+        tgt_suffix_bilingual_embed_fp: str,
     ):
         self.src_morf = rtc.load_morfessor_model(src_morf_model_fp)
         self.tgt_morf = rtc.load_morfessor_model(tgt_morf_model_fp)
         self.src_suffix_feature_lookup_table = rtc.load_bilingual_embed(
-            src_bilingual_embed_fp
+            src_suffix_bilingual_embed_fp
         )
         self.tgt_suffix_feature_lookup_table = rtc.load_bilingual_embed(
-            tgt_bilingual_embed_fp
+            tgt_suffix_bilingual_embed_fp
         )
 
     def get_features(self, token, src_or_tgt="src") -> List[float]:
@@ -48,13 +47,19 @@ class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         # expect that the data has come in the format of:
         # (src, token), (src, token), (tgt, token), (src, token)
-        new_data = Parallel(n_jobs=-1)(
-            delayed(self.get_features)(t, src_or_tgt=src_or_tgt) for src_or_tgt, t in X
-        )
+        # new_data = Parallel(n_jobs=-1)(
+        #    delayed(self.get_features)(t, src_or_tgt=src_or_tgt) for src_or_tgt, t in X
+        # )
+
+        new_data = [
+            self.get_features(t, src_or_tgt=src_or_tgt)
+            for src_or_tgt, t in tqdm(X, desc="Transforming tokens to morphemes...")
+        ]
 
         return new_data
 
 
+"""
 def parse_args():
     # this function only exists for testing purposes
     parser = argparse.ArgumentParser()
@@ -80,3 +85,5 @@ def parse_args():
 
 if __name__ == "__main__":
     parse_args()
+
+"""
