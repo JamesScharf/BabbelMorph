@@ -133,9 +133,15 @@ class UniMorphCB(object):
         for i, cl in enumerate(list(self.mlb.classes_)):
             pred_col = [x[i] for x in preds]
             true_col = [x[i] for x in true_proc_labels]
-
             print(cl)
             print(classification_report(true_col, pred_col, zero_division=0))
+
+        # now print out the extracted tokens
+        print("PREDICTED TOKENS")
+        print("TOKEN\tPRED_LABELS\tTRUE_LABELS")
+        for token, pred_labels, true_labels in zip(test_tokens, preds, unimorph_labels):
+            extracted_pred = ";".join(self.mlb.inverse_transform(pred_labels))
+            print(f"{token}\t{extracted_pred}\t{true_labels}")
 
 
 def parse_args():
@@ -173,11 +179,20 @@ def parse_args():
     x_test, y_test = clf.load_unimorph(src_unimorph_test)
 
     clf.train(x_train, y_train, x_valid, y_valid)
+
+    print("------------------------------------")
+    print("SOURCE TRAIN SET EVALUATION:")
+    clf.evaluate(x_train, y_train)
+
+    print("------------------------------------")
+    print("SOURCE TEST SET EVALUATION:")
     clf.evaluate(x_test, y_test)
 
     if args.tgt_unimorph_test_fp:
         tgt_unimorph_test = args.tgt_unimorph_test_fp
-        print("Evaluating target language test now")
+
+        print("------------------------------------")
+        print("TARGET TEST SET EVALUATION:")
         tgt_x, tgt_y = clf.load_unimorph(tgt_unimorph_test, src_or_tgt="tgt")
         clf.evaluate(tgt_x, tgt_y)
 
