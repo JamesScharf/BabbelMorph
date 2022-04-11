@@ -1,12 +1,12 @@
 from collections import defaultdict
 import enum
+from lib2to3.pgen2 import token
 import data_transformers as dt
 from typing import DefaultDict, Dict, List, Tuple
 from catboost import CatBoostClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multioutput import ClassifierChain
 import argparse
-from sklearn.metrics import classification_report
 import numpy as np
 
 
@@ -77,9 +77,14 @@ class UniMorphCB(object):
         new_X = []
         new_y = []
 
+        # establish number of features
+        for x in X:
+            if x != None:
+                self.num_fts = len(x)
+
         for x, y in zip(X, proc_labels):
             if x == None:
-                x = [0] * len(X[0])
+                x = [0] * self.num_fts
             new_X.append(x)
             new_y.append(y)
 
@@ -89,7 +94,7 @@ class UniMorphCB(object):
 
         for x, y in zip(valid_X, valid_labels):
             if x == None:
-                x = [0] * len(X[0])
+                x = [0] * self.num_fts
             new_X_valid.append(x)
             new_y_valid.append(y)
 
@@ -100,8 +105,9 @@ class UniMorphCB(object):
 
         order = []
         for p in pos:
-            p_index = list(self.mlb.classes_).index(p)
-            order.append(p_index)
+            if p in list(self.mlb.classes_):
+                p_index = list(self.mlb.classes_).index(p)
+                order.append(p_index)
 
         # nothing else matters
         for i, _ in enumerate(list(self.mlb.classes_)):
@@ -114,6 +120,31 @@ class UniMorphCB(object):
         new_y.append([0] * len(self.mlb.classes_))
         self.clf.fit(new_X, new_y)
 
+    def predict(self, tokens: List[Tuple[str]], out_fp: str):
+        # tokens: Formatted like (src, token), (tgt, token), (src, token), (src, token)
+        # Saves predictions to file like: TOKEN PREDS
+
+        X = self.embedder.transform(tokens)
+        # remove errors
+        new_X = []
+        for x in X:
+            if x == None:
+                x = [0] * self.num_fts
+            new_X.append(x)
+        preds = self.clf.predict(new_X)
+        preds = self.mlb.inverse_transform(preds)
+
+        out_f = open(out_fp, "w")
+
+        for input_token, labels in zip(tokens, preds):
+            token_str = input_token[1]
+            labels.sort()
+            str_labels = ";".join(labels)
+
+            out_str = f"{token_str}\t{str_labels}"
+            out_f.write(out_str)
+        out_f.close()
+
     def evaluate(
         self,
         test_tokens: List[Tuple[str]],
@@ -121,16 +152,14 @@ class UniMorphCB(object):
         prediction_fp: str,
     ):
         print("Token prediction output file: ", prediction_fp)
-
         X = self.embedder.transform(test_tokens)
 
         # remove errors
         new_X = []
 
-        num_fts = len(X[0])
         for x in X:
             if x == None:
-                x = [0] * num_fts
+                x = [0] * self.num_fts
             new_X.append(x)
 
         preds = self.clf.predict(new_X)
@@ -142,7 +171,8 @@ class UniMorphCB(object):
 
         out_f = open(prediction_fp, "w")
         out_f.write("TOKEN\tPREDICTION\tTRUTH")
-        for true_labels, pred_labels in zip(unimorph_labels, preds):
+        for token, true_labels, pred_labels in zip(test_tokens, unimorph_labels, preds):
+            token = token[1]
             pred_labels = list(pred_labels)
             for tl in true_labels:
                 if tl in pred_labels:
@@ -156,7 +186,7 @@ class UniMorphCB(object):
 
             true_str = ";".join(true_labels)
             pred_str = ";".join(pred_labels)
-            out_f.write(f"{true_str}\t{pred_str}\n")
+            out_f.write(f"{token}\t{true_str}\t{pred_str}\n")
         out_f.close()
 
         # calculate summary statistics for each class

@@ -24,9 +24,9 @@ python3 src/utils/segment_txt.py $MORFESSOR_MODEL $TRAIN_TEXT_FP $SEGMENTED_TEXT
 
 
 # do actual model training if needed
-#if test -f "$MODEL_OUTPUT_VEC"; then
-#    echo "$MODEL_OUTPUT_VEC exists."
-#else
+if test -f "$MODEL_OUTPUT_VEC"; then
+    echo "$MODEL_OUTPUT_VEC exists."
+else
     echo "Training skipgram model"
     ./fasttext/fasttext skipgram -input $SEGMENTED_TEXT -output $MODEL_OUTPUT -dim 50
-#fi
+fi
