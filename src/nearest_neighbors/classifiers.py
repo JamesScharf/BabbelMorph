@@ -1,12 +1,13 @@
 from collections import defaultdict
 import enum
 import data_transformers as dt
-from typing import List, Tuple
+from typing import DefaultDict, Dict, List, Tuple
 from catboost import CatBoostClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multioutput import ClassifierChain
 import argparse
 from sklearn.metrics import classification_report
+import numpy as np
 
 
 class UniMorphCB(object):
@@ -77,18 +78,20 @@ class UniMorphCB(object):
         new_y = []
 
         for x, y in zip(X, proc_labels):
-            if x != None:
-                new_X.append(x)
-                new_y.append(y)
+            if x == None:
+                x = [0] * len(X[0])
+            new_X.append(x)
+            new_y.append(y)
 
         # remove errors
         new_X_valid = []
         new_y_valid = []
 
         for x, y in zip(valid_X, valid_labels):
-            if x != None:
-                new_X_valid.append(x)
-                new_y_valid.append(y)
+            if x == None:
+                x = [0] * len(X[0])
+            new_X_valid.append(x)
+            new_y_valid.append(y)
 
         base = CatBoostClassifier(iterations=200)  # , task_type="GPU", devices="0:1"
 
@@ -111,37 +114,68 @@ class UniMorphCB(object):
         new_y.append([0] * len(self.mlb.classes_))
         self.clf.fit(new_X, new_y)
 
-    def evaluate(self, test_tokens: List[Tuple[str]], unimorph_labels: List[List[str]]):
+    def evaluate(
+        self,
+        test_tokens: List[Tuple[str]],
+        unimorph_labels: List[List[str]],
+        prediction_fp: str,
+    ):
+        print("Token prediction output file: ", prediction_fp)
 
-        true_proc_labels = self.process_labels(unimorph_labels)
         X = self.embedder.transform(test_tokens)
 
         # remove errors
         new_X = []
-        new_y = []
 
-        for x, y in zip(X, true_proc_labels):
-            if x != None:
-                new_X.append(x)
-                new_y.append(y)
+        num_fts = len(X[0])
+        for x in X:
+            if x == None:
+                x = [0] * num_fts
+            new_X.append(x)
 
-        true_proc_labels = new_y
+        preds = self.clf.predict(new_X)
+        preds = self.mlb.inverse_transform(preds)
 
-        preds = self.clf.predict(new_X).tolist()
+        evaluation: DefaultDict[str, DefaultDict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
 
-        print("Beginning evaluation...")
-        for i, cl in enumerate(list(self.mlb.classes_)):
-            pred_col = [x[i] for x in preds]
-            true_col = [x[i] for x in true_proc_labels]
-            print(cl)
-            print(classification_report(true_col, pred_col, zero_division=0))
+        out_f = open(prediction_fp, "w")
+        out_f.write("TOKEN\tPREDICTION\tTRUTH")
+        for true_labels, pred_labels in zip(unimorph_labels, preds):
+            pred_labels = list(pred_labels)
+            for tl in true_labels:
+                if tl in pred_labels:
+                    evaluation[tl]["tp"] += 1
+                else:
+                    evaluation[tl]["fn"] += 1
 
-        # now print out the extracted tokens
-        print("PREDICTED TOKENS")
-        print("TOKEN\tPRED_LABELS\tTRUE_LABELS")
-        for token, pred_labels, true_labels in zip(test_tokens, preds, unimorph_labels):
-            extracted_pred = ";".join(self.mlb.inverse_transform(pred_labels))
-            print(f"{token}\t{extracted_pred}\t{true_labels}")
+            for pred_l in pred_labels:
+                if pred_l not in true_labels:
+                    evaluation[pred_l]["fp"] += 1
+
+            true_str = ";".join(true_labels)
+            pred_str = ";".join(pred_labels)
+            out_f.write(f"{true_str}\t{pred_str}\n")
+        out_f.close()
+
+        # calculate summary statistics for each class
+        print("---------------------------------")
+        print("label\tprecision\trecall")
+        for label, conf_mat in evaluation.items():
+            if conf_mat["fp"] + conf_mat["tp"] == 0:
+                prec = 0
+            else:
+                prec = conf_mat["tp"] / (conf_mat["tp"] + conf_mat["fp"])
+
+            if conf_mat["tp"] + conf_mat["fn"] == 0:
+                rec = 0
+            else:
+                rec = conf_mat["tp"] / (conf_mat["tp"] + conf_mat["fn"])
+
+            prec = round(prec, 3)
+            rec = round(rec, 3)
+            print(f"{label}\t{prec}\t{rec}")
 
 
 def parse_args():
@@ -157,7 +191,9 @@ def parse_args():
     parser.add_argument("src_unimorph_valid_fp")
     parser.add_argument("src_unimorph_test_fp")
 
+    parser.add_argument("output_src_unimorph_test_fp")
     parser.add_argument("--tgt_unimorph_test_fp")
+    parser.add_argument("--output_tgt_unimorph_test_fp")
 
     args = parser.parse_args()
 
@@ -171,6 +207,8 @@ def parse_args():
     src_unimorph_valid = args.src_unimorph_valid_fp
     src_unimorph_test = args.src_unimorph_test_fp
 
+    src_pred_fp = args.output_src_unimorph_test_fp
+
     clf = UniMorphCB(src_morf, tgt_morf, src_embed, tgt_embed)
 
     x_train, y_train = clf.load_unimorph(src_unimorph_train)
@@ -181,20 +219,17 @@ def parse_args():
     clf.train(x_train, y_train, x_valid, y_valid)
 
     print("------------------------------------")
-    print("SOURCE TRAIN SET EVALUATION:")
-    clf.evaluate(x_train, y_train)
-
-    print("------------------------------------")
     print("SOURCE TEST SET EVALUATION:")
-    clf.evaluate(x_test, y_test)
+    clf.evaluate(x_test, y_test, src_pred_fp)
 
     if args.tgt_unimorph_test_fp:
         tgt_unimorph_test = args.tgt_unimorph_test_fp
+        tgt_output = args.output_tgt_unimorph_test_fp
 
         print("------------------------------------")
         print("TARGET TEST SET EVALUATION:")
         tgt_x, tgt_y = clf.load_unimorph(tgt_unimorph_test, src_or_tgt="tgt")
-        clf.evaluate(tgt_x, tgt_y)
+        clf.evaluate(tgt_x, tgt_y, tgt_output)
 
 
 if __name__ == "__main__":
