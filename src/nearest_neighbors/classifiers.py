@@ -17,12 +17,16 @@ class UniMorphCB(object):
         tgt_morf_model_fp: str,
         src_bilingual_embed_fp: str,
         tgt_bilingual_embed_fp: str,
+        segment_method: str,
     ):
+
+        self.segment_method = segment_method
         self.embedder = dt.UniMorphEmbeddingTransformer(
             src_morf_model_fp,
             tgt_morf_model_fp,
             src_bilingual_embed_fp,
             tgt_bilingual_embed_fp,
+            self.segment_method,
         )
         self.mlb = None
 
@@ -222,6 +226,8 @@ def parse_args():
     parser.add_argument("src_unimorph_test_fp")
 
     parser.add_argument("output_src_unimorph_test_fp")
+
+    parser.add_argument("segment_method")
     parser.add_argument("--tgt_unimorph_test_fp")
     parser.add_argument("--output_tgt_unimorph_test_fp")
 
@@ -232,6 +238,7 @@ def parse_args():
 
     src_morf = args.src_morfessor_model_fp
     tgt_morf = args.tgt_morfessor_model_fp
+    segment_method = args.segment_method
 
     src_unimorph_train = args.src_unimorph_train_fp
     src_unimorph_valid = args.src_unimorph_valid_fp
@@ -239,7 +246,7 @@ def parse_args():
 
     src_pred_fp = args.output_src_unimorph_test_fp
 
-    clf = UniMorphCB(src_morf, tgt_morf, src_embed, tgt_embed)
+    clf = UniMorphCB(src_morf, tgt_morf, src_embed, tgt_embed, segment_method)
 
     x_train, y_train = clf.load_unimorph(src_unimorph_train)
 

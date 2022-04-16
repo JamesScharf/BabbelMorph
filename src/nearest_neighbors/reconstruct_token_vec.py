@@ -1,6 +1,7 @@
 # In the process of building our embeddings, we drop
 # some items
 # This should help reconstruct them
+from cgitb import lookup
 from glob import glob
 from re import L
 import numpy as np
@@ -13,6 +14,7 @@ from tqdm import tqdm
 import morfessor_utils as mu
 from sklearn.neighbors import NearestNeighbors
 import ray
+import torch
 
 
 def load_bilingual_embed(fp: str) -> Dict[str, List[float]]:
@@ -34,7 +36,7 @@ def load_bilingual_embed(fp: str) -> Dict[str, List[float]]:
     lookup_table: Dict[str, List[float]] = {}
 
     for p_ln in parsed_lns:
-        lookup_table[p_ln[0]] = p_ln[1]
+        lookup_table[p_ln[0]] = torch.tensor(p_ln[1])
 
     return lookup_table
 
@@ -46,17 +48,25 @@ def load_morfessor_model(model_fp: str):
 
 
 def get_token_embedding(
-    morf_model, lookup_table: Dict[str, List[float]], token: str
+    morf_model, lookup_table: Dict[str, List[float]], token: str, segment_method: str
 ) -> List[float]:
-    segmented_tok = mu.segment_token(morf_model, token)
-    try:
-        suffix_embedding = lookup_table[segmented_tok]
-    except:
-        return None
 
-    str_embds = [str(x) for x in suffix_embedding]
-    str_em = " ".join(str_embds)
-    return suffix_embedding
+    segmented_tok = mu.segment_token(morf_model, token, segment_method)
+
+    # obtain each embedding
+    embeddings = []
+    for morpheme in segmented_tok.split():
+        embedding = lookup_table.get(morpheme, None)
+        if embedding != None:
+            embeddings.append(embedding)
+
+    if len(embeddings) >= 1:
+        embeds = torch.stack(embeddings)
+        centroid = embeds.mean(dim=0)
+        suffix_embedding = centroid.tolist()
+        return suffix_embedding
+    else:
+        return None
 
 
 def make_token_vector_data(

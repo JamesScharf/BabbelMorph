@@ -5,10 +5,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("model_fp")
 parser.add_argument("in_fp")
 parser.add_argument("out_fp")
+
+parser.add_argument("segment_method")
 args = parser.parse_args()
 
 out_fp = args.out_fp
 model_fp = args.model_fp
+segment_method = args.segment_method
 
 # load model "file"
 import morfessor
@@ -26,13 +29,13 @@ out_txt = open(out_fp, "w")
 from tqdm import tqdm
 
 
-def proc_ln(ln):
+def proc_ln(ln, segment_method):
     splt_ln = ln.split()
-    morphs = [mu.segment_token(model, t) for t in splt_ln]
+    morphs = [mu.segment_token(model, t, segment_method) for t in splt_ln]
     return " ".join(morphs) + "\n"
 
 
-proc_lns = [proc_ln(ln) for ln in tqdm(lns)]
+proc_lns = [proc_ln(ln, segment_method) for ln in tqdm(lns)]
 # merge lines
 for out_ln in proc_lns:
     out_txt.write(out_ln)

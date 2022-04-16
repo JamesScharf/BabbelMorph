@@ -14,7 +14,9 @@ class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
         tgt_morf_model_fp: str,
         src_suffix_bilingual_embed_fp: str,
         tgt_suffix_bilingual_embed_fp: str,
+        segment_method: str,
     ):
+        self.segment_method = segment_method
         self.src_morf = rtc.load_morfessor_model(src_morf_model_fp)
         self.tgt_morf = rtc.load_morfessor_model(tgt_morf_model_fp)
         self.src_suffix_feature_lookup_table = rtc.load_bilingual_embed(
@@ -31,12 +33,18 @@ class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
 
         if src_or_tgt == "src":
             return rtc.get_token_embedding(
-                self.src_morf, self.src_suffix_feature_lookup_table, token
+                self.src_morf,
+                self.src_suffix_feature_lookup_table,
+                token,
+                self.segment_method,
             )
 
         elif src_or_tgt == "tgt":
             return rtc.get_token_embedding(
-                self.tgt_morf, self.tgt_suffix_feature_lookup_table, token
+                self.tgt_morf,
+                self.tgt_suffix_feature_lookup_table,
+                token,
+                self.segment_method,
             )
         else:
             raise NameError("src_or_tgt should be src or tgt")

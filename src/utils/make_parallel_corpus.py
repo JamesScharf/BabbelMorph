@@ -18,6 +18,7 @@ def make_bitexts(
     tgt_iso: str,
     src_morph_model_fp: str,
     tgt_morph_model_fp: str,
+    segment_method: str,
 ) -> str:
     out_f = open(out_fp, "w")
     src_bibles = find_bibles(src_iso)
@@ -52,12 +53,12 @@ def make_bitexts(
             if len(src_ln_toks) == 0 or len(tgt_ln_toks) == 0:
                 continue
             for i, tok in enumerate(src_ln_toks):
-                total = mu.segment_token(src_model, tok)
+                total = mu.segment_token(src_model, tok, segment_method)
                 src_ln_toks[i] = total
             src_ln = " ".join(src_ln_toks)
 
             for i, tok in enumerate(tgt_ln_toks):
-                total = mu.segment_token(tgt_model, tok)
+                total = mu.segment_token(tgt_model, tok, segment_method)
                 tgt_ln_toks[i] = total
 
             tgt_ln = " ".join(tgt_ln_toks)
@@ -84,6 +85,11 @@ def parse_args():
 
     parser.add_argument("--src_morf_model", help="SRC trained morfessor model")
     parser.add_argument("--tgt_morf_model", help="TGT trained morfessor model")
+
+    parser.add_argument(
+        "--segment_method",
+        help="One of pure_morfessor, countback_morfessor, suffix_morfessor, suffix",
+    )
     args = parser.parse_args()
 
     out_fp = args.fp
@@ -91,8 +97,9 @@ def parse_args():
     tgt_iso = args.tgt
     src_morf = args.src_morf_model
     tgt_morf = args.tgt_morf_model
+    segment_method = args.segment_method
 
-    make_bitexts(out_fp, src_iso, tgt_iso, src_morf, tgt_morf)
+    make_bitexts(out_fp, src_iso, tgt_iso, src_morf, tgt_morf, segment_method)
 
 
 if __name__ == "__main__":
