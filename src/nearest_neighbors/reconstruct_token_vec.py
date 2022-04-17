@@ -2,10 +2,11 @@
 # some items
 # This should help reconstruct them
 from cgitb import lookup
+from collections import defaultdict
 from glob import glob
 from re import L
 import numpy as np
-from typing import Dict, List, Tuple, final
+from typing import DefaultDict, Dict, List, Tuple, final
 import morfessor
 import sys
 
@@ -25,15 +26,25 @@ def load_bilingual_embed(fp: str) -> Dict[str, List[float]]:
     def parse_ln(ln: str) -> Tuple[str, List[float]]:
         splt_ln = ln.split()
         key = splt_ln[0]
-        values = splt_ln[1:]
-        values = [float(v) for v in values]
+        str_values = splt_ln[1:]
+
+        values = []
+        for v in str_values:
+            try:
+                print(v)
+                f_v = float(v)
+                values.append(f_v)
+            except:
+                print("\terror")
+                f_v = 0.0
+                values.append(f_v)
 
         return (key, values)
 
     parsed_lns = [parse_ln(ln) for ln in lns]
 
     # merge into dictionary
-    lookup_table: Dict[str, List[float]] = {}
+    lookup_table: DefaultDict[str, List[float]] = defaultdict(lambda: [0] * 50)
 
     for p_ln in parsed_lns:
         lookup_table[p_ln[0]] = torch.tensor(p_ln[1])

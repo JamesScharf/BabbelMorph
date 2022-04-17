@@ -48,7 +48,9 @@ def segment_token(model, token, method, suffix_n=3):
     elif method == "suffix5":
         res = suffix(t, suffix_n=5)
         return res
-
+    elif method == "whole":
+        res = "".join(t)
+        return res
     else:
         print("method: ", method)
         raise Exception(f"method type not acceptable: {method}")

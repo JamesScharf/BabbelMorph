@@ -71,31 +71,32 @@ else
     python3 ./src/utils/data_split.py "${RAW_UNIMORPH_TGT}"  "${SQASHED_UNIMORPH_TGT}" "$TRAIN_UNIMORPH_TGT" "$VALID_UNIMORPH_TGT" "$TEST_UNIMORPH_TGT" "${TGT_MORFESSOR_MODEL}"
 fi
 
-if test -f "$TRAIN_DICT"; then
-    echo "$TRAIN_DICT exists"
-else
-    python3 src/utils/make_parallel_corpus.py --fp "${BITEXT}" --src "${SRC}" --tgt "${TGT}" \
-        --src_morf_model "${SRC_MORFESSOR_MODEL}" --tgt_morf_model "${TGT_MORFESSOR_MODEL}" \
-        --segment_method "${SEGMENT_METHOD}"
-    ./fast_align/build/fast_align -i $BITEXT -v -d -o -I 5 -p $FORWARD_PARAMS > $FORWARD_ALIGN 
-    echo "Done with forward align"
-    ./fast_align/build/fast_align  -i $BITEXT -v -d -o -r -I 5 -p $REV_PARAMS > $REV_ALIGN 
-    echo "Done with reverse align"
-   ./fast_align/build/atools -i $FORWARD_ALIGN -j $REV_ALIGN -c intersect > $SYM_ALIGN
-   echo "Done with atools intersect"
+#if test -f "$TRAIN_DICT"; then
+#    echo "$TRAIN_DICT exists"
+#else
+python3 src/utils/make_parallel_corpus.py --fp "${BITEXT}" --src "${SRC}" --tgt "${TGT}" \
+    --src_morf_model "${SRC_MORFESSOR_MODEL}" --tgt_morf_model "${TGT_MORFESSOR_MODEL}" \
+    --segment_method "${SEGMENT_METHOD}"
+
+./fast_align/build/fast_align -i $BITEXT -v -d -o -I 5 -p $FORWARD_PARAMS > $FORWARD_ALIGN 
+echo "Done with forward align"
+./fast_align/build/fast_align  -i $BITEXT -v -d -o -r -I 5 -p $REV_PARAMS > $REV_ALIGN 
+echo "Done with reverse align"
+./fast_align/build/atools -i $FORWARD_ALIGN -j $REV_ALIGN -c intersect > $SYM_ALIGN
+echo "Done with atools intersect"
 
     python3 ./src/dictionary/dictionary_extraction.py \
         --align_fp $SYM_ALIGN \
         --bitext_fp $BITEXT \
         > $TRAIN_DICT
     echo "Wrote minimal seed dictionary to ${TRAIN_DICT}"
-fi
+#fi
 
 
 # output folder
 python3 ./vecmap/map_embeddings.py --semi_supervised $TRAIN_DICT $SRC_EMB $TGT_EMB $SRC_MAPPED $TGT_MAPPED --cuda -v
 
-mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/
+#mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/
 #CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$SRC
 #CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$TGT
 
@@ -103,15 +104,14 @@ mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/
 #    "${OUTPUT_FOLDER}/${SRC}.vec" "${SRC}" "${SRC_MORFESSOR_MODEL}" \
 #    >  $CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS
 
-#python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
-#    "${OUTPUT_FOLDER}/${TGT}.vec" "${TGT}" "${TGT_MORFESSOR_MODEL}" \
-#    >  $CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS
+python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
+    "${OUTPUT_FOLDER}/${TGT}.vec" "${TGT}" "${TGT_MORFESSOR_MODEL}" \
+    >  $CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS
 
 echo "Converted crosslingual embeddings to token (as opposed to suffix) format"
-#python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
+python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
 
 echo $SEGMENT_METHOD
 echo $PREDICTION_MODEL_EVALUATION
 
 python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" > $PREDICTION_MODEL_EVALUATION
-
