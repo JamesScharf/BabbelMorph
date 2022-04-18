@@ -31,11 +31,9 @@ def load_bilingual_embed(fp: str) -> Dict[str, List[float]]:
         values = []
         for v in str_values:
             try:
-                print(v)
                 f_v = float(v)
                 values.append(f_v)
             except:
-                print("\terror")
                 f_v = 0.0
                 values.append(f_v)
 

@@ -16,7 +16,7 @@ def segment_token(model, token, method, suffix_n=3):
     if len(token) == 1:
         return token
     token = token.lower()
-    token = unidecode(token)
+    # token = unidecode(token)
     try:
         t = model.segment(token)
     except:

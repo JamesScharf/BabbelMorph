@@ -96,20 +96,20 @@ echo "Done with atools intersect"
 # output folder
 python3 ./vecmap/map_embeddings.py --semi_supervised $TRAIN_DICT $SRC_EMB $TGT_EMB $SRC_MAPPED $TGT_MAPPED --cuda -v
 
-#mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/
-#CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$SRC
-#CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$TGT
+mkdir -p ./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/
+CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$SRC
+CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS=./data/crosslingual_token_embeddings/"${SRC}_${TGT}_${SEGMENT_METHOD}"/$TGT
 
-#python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
-#    "${OUTPUT_FOLDER}/${SRC}.vec" "${SRC}" "${SRC_MORFESSOR_MODEL}" \
-#    >  $CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS
+python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
+    "${OUTPUT_FOLDER}/${SRC}.vec" "${SRC}" "${SRC_MORFESSOR_MODEL}" \
+    >  $CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS
 
 python3 ./src/nearest_neighbors/reconstruct_token_vec.py \
     "${OUTPUT_FOLDER}/${TGT}.vec" "${TGT}" "${TGT_MORFESSOR_MODEL}" \
     >  $CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS
 
 echo "Converted crosslingual embeddings to token (as opposed to suffix) format"
-python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
+#python3 ./src/nearest_neighbors/interactive_nn.py "${CROSSLINGUAL_SRC_TOKEN_EMBEDDINGS}" "${CROSSLINGUAL_TGT_TOKEN_EMBEDDINGS}" "tgt"
 
 echo $SEGMENT_METHOD
 echo $PREDICTION_MODEL_EVALUATION
