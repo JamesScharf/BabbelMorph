@@ -18,8 +18,11 @@ class UniMorphCB(object):
         src_bilingual_embed_fp: str,
         tgt_bilingual_embed_fp: str,
         segment_method: str,
+        dictionary_mode=False,  # if true, just lookup tgt suffix-->src suffix and throw in src suffix features
+        dictionary_fp=None,
     ):
-
+        self.dictionary_fp = dictionary_fp
+        self.dictionary_mode = dictionary_mode
         self.segment_method = segment_method
         self.embedder = dt.UniMorphEmbeddingTransformer(
             src_morf_model_fp,
@@ -27,6 +30,8 @@ class UniMorphCB(object):
             src_bilingual_embed_fp,
             tgt_bilingual_embed_fp,
             self.segment_method,
+            dictionary_mode=self.dictionary_mode,
+            dictionary_fp=self.dictionary_fp,
         )
         self.mlb = None
 
@@ -102,7 +107,7 @@ class UniMorphCB(object):
             new_X_valid.append(x)
             new_y_valid.append(y)
 
-        base = CatBoostClassifier(iterations=200)  # , task_type="GPU", devices="0:1"
+        base = CatBoostClassifier(iterations=500)  # , task_type="GPU", devices="0:1")
 
         # order doesn't matter except we want POS first
         pos = ["N", "ADJ", "V"]
@@ -127,6 +132,7 @@ class UniMorphCB(object):
     def predict(self, tokens: List[Tuple[str]], out_fp: str):
         # tokens: Formatted like (src, token), (tgt, token), (src, token), (src, token)
         # Saves predictions to file like: TOKEN PREDS
+        # if dictionary_mode=True, then we're going to use the source embeddings for a given target word based on a lookup table
 
         X = self.embedder.transform(tokens)
         # remove errors
@@ -231,6 +237,10 @@ def parse_args():
     parser.add_argument("--tgt_unimorph_test_fp")
     parser.add_argument("--output_tgt_unimorph_test_fp")
 
+    parser.add_argument("--dictionary_mode", help="Either TRUE or FALSE")
+
+    parser.add_argument("--dictionary_fp")
+
     args = parser.parse_args()
 
     src_embed = args.src_suffix_embedding_fp
@@ -246,7 +256,22 @@ def parse_args():
 
     src_pred_fp = args.output_src_unimorph_test_fp
 
-    clf = UniMorphCB(src_morf, tgt_morf, src_embed, tgt_embed, segment_method)
+    if args.dictionary_mode == "TRUE":
+        dictionary_mode = True
+        dictionary_fp = args.dictionary_fp
+    else:
+        dictionary_mode = False
+        dictionary_fp = None
+
+    clf = UniMorphCB(
+        src_morf,
+        tgt_morf,
+        src_embed,
+        tgt_embed,
+        segment_method,
+        dictionary_mode=dictionary_mode,
+        dictionary_fp=dictionary_fp,
+    )
 
     x_train, y_train = clf.load_unimorph(src_unimorph_train)
 

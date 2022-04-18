@@ -57,11 +57,17 @@ def load_morfessor_model(model_fp: str):
 
 
 def get_token_embedding(
-    morf_model, lookup_table: Dict[str, List[float]], token: str, segment_method: str
+    morf_model,
+    lookup_table: Dict[str, List[float]],
+    token: str,
+    segment_method: str,
+    skip_segment=False,
 ) -> List[float]:
 
-    segmented_tok = mu.segment_token(morf_model, token, segment_method)
-
+    if skip_segment == True:
+        segmented_tok = token
+    else:
+        segmented_tok = mu.segment_token(morf_model, token, segment_method)
     # obtain each embedding
     embeddings = []
     for morpheme in segmented_tok.split():
