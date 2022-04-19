@@ -1,5 +1,12 @@
 TGT=$1
 
+
+
+source multilingual_projection.sh heb $TGT 
+source multilingual_projection.sh arz $TGT 
+source multilingual_projection.sh mlt $TGT 
+
+: '
 METHOD="countback_morfessor"
 
 source multilingual_embedding.sh heb $TGT $METHOD

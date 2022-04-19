@@ -1,5 +1,13 @@
 TGT=$1
 
+source multilingual_projection.sh rus $TGT
+source multilingual_projection.sh ukr $TGT
+source multilingual_projection.sh mkd $TGT
+source multilingual_projection.sh slk $TGT
+source multilingual_projection.sh slv $TGT
+source multilingual_projection.sh bul $TGT
+
+: '
 METHOD="countback_morfessor"
 source multilingual_embedding.sh rus $TGT $METHOD
 source multilingual_embedding.sh ukr $TGT $METHOD

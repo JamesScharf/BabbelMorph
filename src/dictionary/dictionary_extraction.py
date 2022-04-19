@@ -11,16 +11,22 @@ def parse_args():
 
     parser.add_argument("--align_fp", help="The file path to the alignment file")
     parser.add_argument("--bitext_fp", help="The file path to the bitext")
+    parser.add_argument("--editdist", help="The maximum edit distance permitted.")
 
     args = parser.parse_args()
 
     align_fp = args.align_fp
     bitext_fp = args.bitext_fp
 
-    make_dictionary(align_fp, bitext_fp)
+    if args.editdist == None:
+        editdist = 2
+    else:
+        editdist = int(args.editdist)
+
+    make_dictionary(align_fp, bitext_fp, max_editdist=editdist)
 
 
-def make_dictionary(align_fp, bitext_fp):
+def make_dictionary(align_fp, bitext_fp, max_editdist=2):
     align_f = open(align_fp, "r")
     bitext_f = open(bitext_fp, "r")
 
@@ -49,10 +55,10 @@ def make_dictionary(align_fp, bitext_fp):
         for tgt_w, count in v.items():
             editdist = dual_edit_dist(k, tgt_w)
             if (
-                editdist < 2
+                editdist < max_editdist
             ):  # and len(src_w) >= 3 and len(tgt_w) >= 3:  # arbitrary value
 
-                if len(k) == 1 and len(tgt_w) == 1 and k != tgt_w:
+                if len(k) == 1 or len(tgt_w) == 1 and k != tgt_w:
                     continue
 
                 if count > 5:

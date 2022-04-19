@@ -50,16 +50,18 @@ def make_bitexts(
 
             src_ln_toks = src_ln.split()
             tgt_ln_toks = tgt_ln.split()
-            if len(src_ln_toks) == 0 or len(tgt_ln_toks) == 0:
-                continue
-            for i, tok in enumerate(src_ln_toks):
-                total = mu.segment_token(src_model, tok, segment_method)
-                src_ln_toks[i] = total
-            src_ln = " ".join(src_ln_toks)
 
-            for i, tok in enumerate(tgt_ln_toks):
-                total = mu.segment_token(tgt_model, tok, segment_method)
-                tgt_ln_toks[i] = total
+            if segment_method != "whole":
+                if len(src_ln_toks) == 0 or len(tgt_ln_toks) == 0:
+                    continue
+                for i, tok in enumerate(src_ln_toks):
+                    total = mu.segment_token(src_model, tok, segment_method)
+                    src_ln_toks[i] = total
+                src_ln = " ".join(src_ln_toks)
+
+                for i, tok in enumerate(tgt_ln_toks):
+                    total = mu.segment_token(tgt_model, tok, segment_method)
+                    tgt_ln_toks[i] = total
 
             tgt_ln = " ".join(tgt_ln_toks)
 

@@ -75,7 +75,6 @@ class UniMorphEmbeddingTransformer(BaseEstimator, TransformerMixin):
             if self.dictionary_mode and src_or_tgt == "tgt":
                 # convert tgt token to src segmented
                 src_dict_lookup_res = self.convert_tgt_to_src_segmented(token)
-                print(src_dict_lookup_res)
                 return rtc.get_token_embedding(
                     self.src_morf,
                     self.src_suffix_feature_lookup_table,

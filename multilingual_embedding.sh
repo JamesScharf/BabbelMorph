@@ -112,14 +112,14 @@ echo $SEGMENT_METHOD
 echo $PREDICTION_MODEL_EVALUATION
 
 echo "Training non-dict mode"
-if test -f "$PREDICTION_MODEL_EVALUATION"; then
+if test -s "$PREDICTION_MODEL_EVALUATION"; then
     echo "non-dict model already trained"
 else
-    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="FALSE" --dictionary_fp="" > $PREDICTION_MODEL_EVALUATION
+    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="FALSE" --dictionary_fp="" --concat "FALSE" > $PREDICTION_MODEL_EVALUATION
 fi
 
 echo "Training dict mode"
-if test -f "$DICT_PREDICTION_MODEL_EVALUATION"; then
+if test -s "$DICT_PREDICTION_MODEL_EVALUATION"; then
     echo "dict model already trained"
 else
     python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${DICT_SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${DICT_TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="TRUE" --dictionary_fp="${TRAIN_DICT}" > $DICT_PREDICTION_MODEL_EVALUATION

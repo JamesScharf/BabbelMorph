@@ -3,7 +3,7 @@ from email.policy import default
 from enum import unique
 from genericpath import exists
 from random import random
-from typing import Tuple, List, Set, DefaultDict
+from typing import Dict, Tuple, List, Set, DefaultDict
 from sklearn.preprocessing import MultiLabelBinarizer
 import pandas as pd
 import argparse
@@ -67,10 +67,17 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
     io = morfessor.MorfessorIO()
     model = io.read_any_model(morfessor_model)
     out_f = open(out_fp, "w")
+
+    fm = feature_map()
+    allowed_features = {"Case", "Gender", "Number", "PartOfSpeech", "Person"}
+
     for token, label in zip(tokens, labels):
         # new_labels = [f"__label__{l}" for l in label]
 
         new_labels = [f"{l}" for l in label]
+        # remove those features we aren't testing on
+        new_labels = [x for x in new_labels if fm[x] in allowed_features]
+
         new_labels.sort()
         if len(new_labels) == 0:
             continue
@@ -84,6 +91,19 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
         out_f.write(ln)
 
     out_f.close()
+
+
+def feature_map() -> Dict[str, str]:
+    f = open("./data/feature_map.tsv")
+    lns = f.readlines()
+    f.close()
+
+    out = {}
+    for ln in lns:
+        splt_ln = ln.split("\t")
+        out[splt_ln[0]] = out[splt_ln[1]]
+
+    return out
 
 
 def data_split(
