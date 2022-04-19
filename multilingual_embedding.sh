@@ -64,20 +64,6 @@ source train_embedding.sh $SRC $SEGMENT_METHOD
 source train_embedding.sh $TGT $SEGMENT_METHOD
 
 
-# unimorph data split
-if test -f "$TEST_UNIMORPH_SRC"; then 
-    echo "$TEST_UNIMORPH_SRC exists" 
-else
-    python3 ./src/utils/data_split.py "${RAW_UNIMORPH_SRC}"  "${SQASHED_UNIMORPH_SRC}" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_MORFESSOR_MODEL}"
-fi
-
-
-if test -f "$TEST_UNIMORPH_TGT"; then 
-    echo "$TEST_UNIMORPH_TGT exists" 
-else
-    python3 ./src/utils/data_split.py "${RAW_UNIMORPH_TGT}"  "${SQASHED_UNIMORPH_TGT}" "$TRAIN_UNIMORPH_TGT" "$VALID_UNIMORPH_TGT" "$TEST_UNIMORPH_TGT" "${TGT_MORFESSOR_MODEL}"
-fi
-
 if test -f "$TRAIN_DICT"; then
     echo "$TRAIN_DICT exists"
 else
@@ -108,19 +94,19 @@ else
     python3 ./vecmap/map_embeddings.py --semi_supervised $TRAIN_DICT $SRC_EMB $TGT_EMB $SRC_MAPPED $TGT_MAPPED --cuda -v
 fi
 
-echo $SEGMENT_METHOD
-echo $PREDICTION_MODEL_EVALUATION
+#echo $SEGMENT_METHOD
+#echo $PREDICTION_MODEL_EVALUATION
 
-echo "Training non-dict mode"
-if test -s "$PREDICTION_MODEL_EVALUATION"; then
-    echo "non-dict model already trained"
-else
-    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="FALSE" --dictionary_fp="" --concat "FALSE" > $PREDICTION_MODEL_EVALUATION
-fi
+#echo "Training non-dict mode"
+#if test -s "$PREDICTION_MODEL_EVALUATION"; then
+#    echo "non-dict model already trained"
+#else
+#    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="FALSE" --dictionary_fp="" --concat "FALSE" > $PREDICTION_MODEL_EVALUATION
+#fi
 
-echo "Training dict mode"
-if test -s "$DICT_PREDICTION_MODEL_EVALUATION"; then
-    echo "dict model already trained"
-else
-    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${DICT_SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${DICT_TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="TRUE" --dictionary_fp="${TRAIN_DICT}" > $DICT_PREDICTION_MODEL_EVALUATION
-fi
+#echo "Training dict mode"
+#if test -s "$DICT_PREDICTION_MODEL_EVALUATION"; then
+#    echo "dict model already trained"
+#else
+#    python3 ./src/nearest_neighbors/classifiers.py "${SRC_MAPPED}" "${TGT_MAPPED}" "$SRC_MORFESSOR_MODEL" "$TGT_MORFESSOR_MODEL" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "${DICT_SRC_TRAIN_PREDICTION_MODEL_OUTPUT}" "${SEGMENT_METHOD}" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${DICT_TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="TRUE" --dictionary_fp="${TRAIN_DICT}" > $DICT_PREDICTION_MODEL_EVALUATION
+#fi

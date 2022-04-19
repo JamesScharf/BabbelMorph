@@ -62,26 +62,27 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
         labels.append(list(l))
 
     # make new file
-    import morfessor
 
-    io = morfessor.MorfessorIO()
-    model = io.read_any_model(morfessor_model)
     out_f = open(out_fp, "w")
 
     fm = feature_map()
-    allowed_features = {"Case", "Gender", "Number", "PartOfSpeech", "Person"}
+    allowed_dimensions = {"Case", "Gender", "Number", "PartOfSpeech", "Person"}
+    ft_index_map = feature_index_map(allowed_dimensions, fm)
 
     for token, label in zip(tokens, labels):
         # new_labels = [f"__label__{l}" for l in label]
 
         new_labels = [f"{l}" for l in label]
         # remove those features we aren't testing on
-        new_labels = [x for x in new_labels if fm[x] in allowed_features]
+        new_labels = [x for x in new_labels if fm.get(x, None) in allowed_dimensions]
+        # map these labels to vector
+        output_vect = len(ft_index_map) * ["none"]
 
-        new_labels.sort()
-        if len(new_labels) == 0:
-            continue
-        str_lab = " ".join(new_labels)
+        for nl in new_labels:
+            i = ft_index_map[nl]
+            output_vect[i] = nl
+
+        str_lab = " ".join(output_vect)
         lemma = token[0]
         token = token[1]
         # t = mu.segment_token(model, token)
@@ -101,9 +102,25 @@ def feature_map() -> Dict[str, str]:
     out = {}
     for ln in lns:
         splt_ln = ln.split("\t")
-        out[splt_ln[0]] = out[splt_ln[1]]
+        out[splt_ln[0]] = splt_ln[1]
 
     return out
+
+
+def feature_index_map(
+    allowed_dimensions: List[str], fm: Dict[str, str]
+) -> Dict[str, int]:
+    fts = []
+    for ft, dim in fm.items():
+        if dim in allowed_dimensions:
+            fts.append(ft)
+
+    ft2index: Dict[str, int] = {}
+
+    for i, ft in enumerate(fts):
+        ft2index[ft] = i
+
+    return ft2index
 
 
 def data_split(
