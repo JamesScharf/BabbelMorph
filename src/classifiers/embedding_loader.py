@@ -61,6 +61,7 @@ class MorphEmbeddingLoader(object):
             method2fp[("tgt", method)] = tgt_fp
 
             callable_logbook[("src", method)] = False
+            callable_logbook[("tgt", method)] = False
 
         return method2fp, callable_logbook
 

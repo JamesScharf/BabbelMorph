@@ -142,8 +142,16 @@ def get_test_dataloader(src_iso: str, tgt_iso: str, use_embeddings: bool):
     return make_dataloader(src_iso, tgt_iso, use_embeddings, mode="test")
 
 
-train = get_train_dataloader("rus", "ukr", use_embeddings=False)
+train = get_train_dataloader("rus", "ukr", use_embeddings=True)
 fts, labels = next(iter(train))
+print(fts.size())
+print(labels.size())
+print(fts)
+print(labels)
+
+
+test = get_test_dataloader("rus", "ukr", use_embeddings=True)
+fts, labels = next(iter(test))
 print(fts.size())
 print(labels.size())
 print(fts)
