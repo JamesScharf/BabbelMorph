@@ -4,9 +4,9 @@ SEGMENT_METHOD=$3
 
 echo "Training and running: $SRC -> $TGT"
 
-mkdir -p "./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}"
+#mkdir -p "./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}"
 
-mkdir -p "./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}_DICTMODE"
+#mkdir -p "./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}_DICTMODE"
 
 PREDICTION_MODEL_EVALUATION="./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}/metrics.txt"
 DICT_PREDICTION_MODEL_EVALUATION="./data/evaluation/${SRC}_${TGT}_${SEGMENT_METHOD}_DICTMODE/metrics.txt"

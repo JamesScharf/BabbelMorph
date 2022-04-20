@@ -121,9 +121,16 @@ class MorphEmbeddingLoader(object):
         return torch.stack(embeddings)
 
     def embed_many_and_merge(
-        self, words: List[str], src_or_tgt: str, methods: List[str]
+        self, words: List[str], src_or_tgt: str, methods=None
     ) -> torch.Tensor:
         # get embeddings for each word and horizontally concat
+        # if methods=None, assume that we're using all embedding methods
+
+        if methods == None:
+            all_methods = list(self.method2fp.keys())
+            methods = [m[1] for m in all_methods if m[0] == src_or_tgt][0:2]
+            # make sure method order is always the same
+            methods.sort()
 
         method_embeds = [self.embed_many(words, src_or_tgt, m) for m in methods]
         t = torch.hstack(method_embeds)

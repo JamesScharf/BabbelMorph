@@ -66,7 +66,7 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
     out_f = open(out_fp, "w")
 
     fm = feature_map()
-    allowed_dimensions = {"Case", "Gender", "Number", "PartOfSpeech", "Person"}
+    allowed_dimensions = {"Case", "PartOfSpeech", "Person"}
     ft_index_map = feature_index_map(allowed_dimensions, fm)
 
     for token, label in zip(tokens, labels):
@@ -102,7 +102,13 @@ def feature_map() -> Dict[str, str]:
     out = {}
     for ln in lns:
         splt_ln = ln.split("\t")
-        out[splt_ln[0]] = splt_ln[1]
+        ft = splt_ln[0]
+        dim = splt_ln[1]
+
+        # don't allow weird features in
+        if "/" in ft or "+" in ft:
+            continue
+        out[ft] = dim
 
     return out
 
@@ -117,6 +123,7 @@ def feature_index_map(
 
     ft2index: Dict[str, int] = {}
 
+    fts.sort()
     for i, ft in enumerate(fts):
         ft2index[ft] = i
 
