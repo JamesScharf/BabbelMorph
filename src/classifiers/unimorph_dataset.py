@@ -6,6 +6,7 @@ from embedding_loader import MorphEmbeddingLoader
 from token_loader import TokenLoader
 import torch
 from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 
 
 class UniMorphDataset(data.Dataset):
@@ -63,13 +64,23 @@ class UniMorphDataset(data.Dataset):
         # make label indexer
         found_labels: Set[str] = set()
         for _, labels in raw_data:
-            found_labels.update(set(labels))
+
+            # concatenate labels
+
+            labels = [x for x in labels if x != "none"]
+            labels.sort()
+            labels = "+".join(labels)
+            found_labels.add(labels)
 
         mapper: Dict[str, int] = {}
 
         label_lst = list(found_labels)
         for i, l in enumerate(label_lst):
-            mapper[l] = i
+            if i == 0:
+                mapper["none"] = i
+            else:
+                mapper[l] = i
+
         return mapper
 
     def process_data(
@@ -83,23 +94,19 @@ class UniMorphDataset(data.Dataset):
 
         for t, ls in raw_data:
             tokens.append(t)
+
+            ls = [x for x in ls if x != "none"]
+            ls.sort()
+            ls = "+".join(ls)
             labels.append(ls)
 
         # convert labels to the appropriate format
-        conv_labels_lst: List[torch.Tensor] = []
-
+        num_labels: List[int] = []
         for ls in labels:
-            num_label = []
-            for l in ls:
-                if l == "none":
-                    num_l = 0
-                else:
-                    num_l = 1
-                num_label.append(num_l)
-            tensor_label = torch.tensor(num_label)
-            conv_labels_lst.append(tensor_label)
+            num_label = self.label2idx.get(ls, 0)
+            num_labels.append(num_label)
 
-        conv_labels_tensor = torch.vstack(conv_labels_lst)
+        conv_labels_tensor = torch.tensor(num_labels)
 
         # now convert tokens by whatever x vectorization method we're using
         src_or_tgt = "src" if iso == self.src_iso else "tgt"
@@ -120,40 +127,63 @@ class UniMorphDataset(data.Dataset):
         return x, y
 
 
-def make_dataloader(src_iso: str, tgt_iso: str, use_embeddings: bool, mode: str):
-    # mode must be one of "train", "valid", "test"
-    dataset = UniMorphDataset(
-        src_iso, tgt_iso, use_embeddings=use_embeddings, mode=mode
-    )
-    loader = DataLoader(dataset, batch_size=64, shuffle=True)
+class DataModule(pl.LightningDataModule):
+    def __init__(self, src_iso: str, tgt_iso: str, use_embeddings: bool):
+        self.src_iso = src_iso
+        self.tgt_iso = tgt_iso
+        self.use_embeds = use_embeddings
 
-    return loader
+    def make_dataloader(
+        self, src_iso: str, tgt_iso: str, use_embeddings: bool, mode: str
+    ):
+        # mode must be one of "train", "valid", "test"
+        dataset = UniMorphDataset(
+            src_iso, tgt_iso, use_embeddings=use_embeddings, mode=mode
+        )
+        loader = DataLoader(dataset, batch_size=64, shuffle=True, num_workers=10)
+
+        return loader
+
+    def train_dataloader(self):
+        return self.make_dataloader(
+            self.src_iso, self.tgt_iso, self.use_embeds, "train"
+        )
+
+    def val_dataloder(self):
+        return self.make_dataloader(
+            self.src_iso, self.tgt_iso, self.use_embeds, "valid"
+        )
+
+    def test_dataloader(self):
+        return self.make_dataloader(self.src_iso, self.tgt_iso, self.use_embeds, "test")
+
+    def predict_dataloader(self):
+        pass
 
 
-def get_train_dataloader(src_iso: str, tgt_iso: str, use_embeddings: bool):
-    return make_dataloader(src_iso, tgt_iso, use_embeddings, mode="train")
+def get_vocab_size(iso: str) -> int:
+    fp = f"./data/unimorph/train/{iso}"
+    f = open(fp, "r")
+
+    unique_chars = set()
+    for ln in f:
+        splt_ln = ln.split()
+        token = splt_ln[1]
+        unique_chars.update(set(token))
+
+    return len(unique_chars)
 
 
-def get_valid_dataloader(src_iso: str, tgt_iso: str, use_embeddings: bool):
-    return make_dataloader(src_iso, tgt_iso, use_embeddings, mode="valid")
+def get_num_outputs(iso: str) -> int:
+    fp = f"./data/unimorph/train/{iso}"
+    f = open(fp, "r")
 
+    unique_labels = set()
+    for ln in f:
+        splt_ln = ln.split()
+        labels = splt_ln[2:]
+        labels.sort()
+        str_lab = "+".join(labels)
+        unique_labels.add(str_lab)
 
-def get_test_dataloader(src_iso: str, tgt_iso: str, use_embeddings: bool):
-    return make_dataloader(src_iso, tgt_iso, use_embeddings, mode="test")
-
-
-train = get_train_dataloader("rus", "ukr", use_embeddings=True)
-fts, labels = next(iter(train))
-print(fts.size())
-print(labels.size())
-print(fts)
-print(labels)
-
-
-test = get_test_dataloader("rus", "ukr", use_embeddings=True)
-fts, labels = next(iter(test))
-print(fts.size())
-print(labels.size())
-print(fts)
-print(labels)
-exit()
+    return len(unique_labels)
