@@ -129,9 +129,10 @@ class MorphEmbeddingLoader(object):
 
         if methods == None:
             all_methods = list(self.method2fp.keys())
-            methods = [m[1] for m in all_methods if m[0] == src_or_tgt][0:2]
+            methods = [m[1] for m in all_methods if m[0] == src_or_tgt]
             # make sure method order is always the same
             methods.sort()
+            print(methods)
 
         method_embeds = [self.embed_many(words, src_or_tgt, m) for m in methods]
         t = torch.hstack(method_embeds)

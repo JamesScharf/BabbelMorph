@@ -32,8 +32,11 @@ class TokenLoader:
 
         lst_chars = list(unique_chars)
         char2index: Dict[str, int] = {}
+
+        char2index["UNK"] = 0
         for i, c in enumerate(lst_chars):
-            char2index[c] = i
+            char2index[c] = i + 1
+        # add extra for UNK
         return char2index
 
     def tokens2tensor(self, tokens: List[str], max_len=16) -> torch.tensor:
@@ -51,7 +54,7 @@ class TokenLoader:
             for i, c in enumerate(w):
                 # don't allow tokens longer than max_len
                 if i < max_len:
-                    i = self.char2index[c]
+                    i = self.char2index.get(c, 0)
                     vectorized.append(i)
             # pad sequence
             padding = [0] * (max_len - len(vectorized))
