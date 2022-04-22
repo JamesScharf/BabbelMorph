@@ -41,9 +41,11 @@ class MorphEmbeddingLoader(object):
         method2fp: Dict[str, str] = {}
         callable_logbook: Dict[str, bool] = {}
 
+        print("Found embeddings:")
         for fp in glob(
             f"./data/crosslingual_embeddings/{self.src_iso}_{self.tgt_iso}_*"
         ):
+            print(fp)
             src_fp = f"{fp}/{self.src_iso}.vec"
             tgt_fp = f"{fp}/{self.tgt_iso}.vec"
 
@@ -59,6 +61,9 @@ class MorphEmbeddingLoader(object):
 
             method2fp[("src", method)] = src_fp
             method2fp[("tgt", method)] = tgt_fp
+
+            print(method)
+            print()
 
             callable_logbook[("src", method)] = False
             callable_logbook[("tgt", method)] = False
@@ -132,7 +137,11 @@ class MorphEmbeddingLoader(object):
             methods = [m[1] for m in all_methods if m[0] == src_or_tgt]
             # make sure method order is always the same
             methods.sort()
+            print(src_or_tgt)
             print(methods)
+            print(self.src_iso)
+            print(self.tgt_iso)
+            print(src_or_tgt)
 
         method_embeds = [self.embed_many(words, src_or_tgt, m) for m in methods]
         t = torch.hstack(method_embeds)

@@ -66,7 +66,7 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
     out_f = open(out_fp, "w")
 
     fm = feature_map()
-    allowed_dimensions = {"Case", "PartOfSpeech", "Person"}
+    allowed_dimensions = {"Case", "PartOfSpeech", "Person", "Number"}
     ft_index_map = feature_index_map(allowed_dimensions, fm)
 
     for token, label in zip(tokens, labels):
@@ -159,12 +159,12 @@ def data_split(
         else:
             lemma = ln.split("\t")[0]
             r = random.uniform(0, 1)
-            # if lemma in train_lemma:
-            #    train_f.write(ln)
-            # elif lemma in valid_lemma:
-            #    valid_f.write(ln)
-            # elif lemma in valid_lemma:
-            #    test_f.write(ln)
+            if lemma in train_lemma:
+                train_f.write(ln)
+            elif lemma in valid_lemma:
+                valid_f.write(ln)
+            elif lemma in valid_lemma:
+                test_f.write(ln)
             if r < 0.7:  # Train
                 train_f.write(ln)
                 train_lemma.add(lemma)

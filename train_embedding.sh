@@ -18,9 +18,7 @@ else
     echo "Training morfessor model..."
     morfessor -t $TRAIN_TEXT_FP -S $MORFESSOR_MODEL --lowercase --output-newlines -d ones --morph-length 2 --max-epochs 1000000
     echo "Applying morfessor model to text"
-    python3 src/utils/segment_txt.py $MORFESSOR_MODEL $TRAIN_TEXT_FP $SEGMENTED_TEXT $SEGMENT_METHOD
 fi
-
 
 
 # do actual model training if needed
@@ -28,5 +26,7 @@ if test -f "$MODEL_OUTPUT_VEC"; then
     echo "$MODEL_OUTPUT_VEC exists."
 else
     echo "Training skipgram model"
+
+    python3 src/utils/segment_txt.py $MORFESSOR_MODEL $TRAIN_TEXT_FP $SEGMENTED_TEXT $SEGMENT_METHOD
     ./fasttext/fasttext skipgram -input $SEGMENTED_TEXT -output $MODEL_OUTPUT -dim 50
 fi

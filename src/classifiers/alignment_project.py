@@ -3,10 +3,25 @@ from collections import defaultdict
 from typing import Counter, DefaultDict, List, Dict, Union, Set
 
 from text_unimorph_classifier import make_classifier
+import argparse
 
 
 def parse_args():
-    pass
+    parser = argparse.ArgumentParser(
+        description="Generate potential UniMorph data for language and save in ./unimorph/generated"
+    )
+
+    parser.add_argument("--fp", help="The dictionary file")
+    parser.add_argument("--src", help="The src iso")
+    parser.add_argument("--tgt", help="The tgt iso")
+    args = parser.parse_args()
+
+    fp = args.fp
+    src = args.src
+    tgt = args.tgt
+
+    ad = AlignmentDictionary(src, tgt, fp)
+    ad.pipeline(fp)
 
 
 class AlignmentDictionary(object):
@@ -14,6 +29,13 @@ class AlignmentDictionary(object):
         self.src_iso = src_iso
         self.tgt_iso = tgt_iso
         self.ft2dim = self.load_ft2dim()
+
+    def pipeline(self, dict_fp: str):
+        d = self.load_dictionary(dict_fp)
+        d_w_fts = self.classify(d)
+        # self.save_intermediate(d_w_fts)
+        merged_d = self.merge_duplicates(d_w_fts)
+        self.save_final(merged_d)
 
     def load_dictionary(self, fp) -> List[Dict[str, Union[str, Set[str]]]]:
         f = open(fp, "r")
@@ -26,8 +48,8 @@ class AlignmentDictionary(object):
             src_tok, tgt_tok = splt_ln[0], splt_ln[1]
 
             data = {
-                "src": src_tok,
-                "tgt": tgt_tok,
+                "src_token": src_tok,
+                "tgt_token": tgt_tok,
                 "final_fts": set(),  # features determine by consensus
                 "src_embed_fts": set(),  # feature determined by application of embed predictor to src side
                 "tgt_embed_fts": set(),  # features determined by application of embed predictor to tgt side
@@ -63,21 +85,22 @@ class AlignmentDictionary(object):
 
         # start out with str classifier
         src_tokens = [("src", x["src_token"]) for x in d]
-        str_classifier = make_classifier(self.src_iso, self.tgt_iso, False, False)
+        _, str_classifier = make_classifier(self.src_iso, self.tgt_iso, False)
         textmodel_src_pred_labels = str_classifier.predict(src_tokens)
         tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
         textmodel_tgt_pred_labels = str_classifier.predict(tgt_tokens)
 
         # apply embedding classifier
         src_tokens = [("src", x["src_token"]) for x in d]
-        str_classifier = make_classifier(self.src_iso, self.tgt_iso, False, False)
-        embed_src_pred_labels = str_classifier.predict(src_tokens)
+        _, embed_classifier = make_classifier(self.src_iso, self.tgt_iso, True)
+        embed_src_pred_labels = embed_classifier.predict(src_tokens)
         tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
-        embed_tgt_pred_labels = str_classifier.predict(tgt_tokens)
+        embed_tgt_pred_labels = embed_classifier.predict(tgt_tokens)
 
         # save results
         out: List[Dict[str, Union[str, Set[str]]]] = []
         for d_entry, txtmod_src, txtmod_tgt, embed_src, embed_tgt in zip(
+            d,
             textmodel_src_pred_labels,
             textmodel_tgt_pred_labels,
             embed_src_pred_labels,
@@ -100,41 +123,84 @@ class AlignmentDictionary(object):
 
         # must first run classify!!!
 
+        # dimension= src_token_fts tgt_token_fts src_embed_fts tgt_embed_fts
+        pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
+
+        data: Dict[str, List[str]] = {}
+
+        out: Dict[str, Dict[str, Union[str, Set[str]]]] = {}
         for i, d_entry in enumerate(d):
 
-            all_preds = (
-                list(d_entry["src_token_fts"])
-                + list(d_entry["tgt_token_fts"])
-                + list(d_entry["src_embed_fts"])
-                + list(d_entry["tgt_embed_fts"])
-            )
+            tgt_tok = d_entry["tgt_token"]
+            out[tgt_tok] = {"tgt_token": tgt_tok}
+            for pt in pred_type:
+                all_preds = d_entry[pt]
 
-            # find the highest votes by category
+                # find the highest votes by category
+                counter: DefaultDict[str, DefaultDict[str, int]] = defaultdict(
+                    lambda: defaultdict(int)
+                )
+                for ft in all_preds:
+                    dim = self.ft2dim.get(ft, "none")
+                    if dim != "none":
+                        counter[dim][ft] += 1
 
-            counter: DefaultDict[str, DefaultDict[str, int]] = defaultdict(
-                lambda: defaultdict(int)
-            )
-            for ft in all_preds:
-                dim = self.ft2dim[ft]
-                counter[dim][ft] += 1
+                remaining = set()
 
-            remaining = set()
+                for dim, candidates in counter.items():
+                    remaining.update(set(candidates))
 
-            for dim, candidates in counter.items():
-                most_votes = max(candidates, key=candidates.get)
-                remaining.add(most_votes)
+                out[tgt_tok][pt] = remaining
 
-            d[i]["final_fts"] = remaining
-
-        return d
+        return list(out.values())
 
     def save_intermediate(self, d: List[Dict[str, Union[str, Set[str]]]]):
         # save the intermediate data to ./data/dictionary_applications/src_tgt.tsv
 
-        fp = f"./data/dictionary_applications/{self.src}_{self.tgt}"
-        pass
+        pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
+        fp = f"./data/dictionary_applications/{self.src_iso}_{self.tgt_iso}"
+
+        out_f = open(fp, "w")
+        header = "src_tok_fts\ttgt_tok_fts\tsrc_emb_fts\ttgt_emb_fts\n"
+        out_f.write(header)
+
+        for i, d_entry in enumerate(d):
+            stf = "+".join(d_entry["src_token_fts"])
+            ttf = "+".join(d_entry["tgt_token_fts"])
+            sef = "+".join(d_entry["src_embed_fts"])
+            tef = "+".join(d_entry["tgt_embed_fts"])
+
+            src = d_entry["src_token"]
+            tgt = d_entry["tgt_token"]
+
+            ln = f"{src}\t{tgt}\t{stf}\t{ttf}\t{sef}\t{tef}\n"
+            out_f.write(ln)
+
+        out_f.close()
 
     def save_final(self, d: List[Dict[str, Union[str, Set[str]]]]):
         # save the data to ./unimorph/data/generated/tgt
         # in UniMorph-format
-        pass
+
+        pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
+
+        for pt in pred_type:
+            fp = f"./data/unimorph/generated/{self.tgt_iso}.{pt}"
+
+            out_f = open(fp, "w")
+
+            for i, d_entry in enumerate(d):
+                fts = list(d_entry[pt])
+                fts.sort()
+                fts = " ".join(fts)
+                tgt = d_entry["tgt_token"]
+                lemma = "UNK"
+
+                ln = f"{lemma}\t{tgt}\t{fts}\n"
+                out_f.write(ln)
+
+            out_f.close()
+
+
+if __name__ == "__main__":
+    parse_args()

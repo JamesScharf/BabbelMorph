@@ -72,7 +72,9 @@ class TextClassifier(pl.LightningModule):
     def extract_data_from_dataset(self):
         # obtain label mapper
         print("Obtaining label mapper")
-        dataset = ud.UniMorphDataset(self.src_iso, self.tgt_iso)
+        dataset = ud.UniMorphDataset(
+            self.src_iso, self.tgt_iso, use_embeddings=self.use_embeds
+        )
         # extract the vectorization method for potential deployment
         # down the road
         self.vect_method = dataset.vect_method
@@ -286,10 +288,10 @@ def make_classifier(
     # validation step
 
     trainer = pl.Trainer(
-        max_epochs=15,
+        max_epochs=20,
         gpus=1,
         progress_bar_refresh_rate=20,
-        callbacks=[EarlyStopping(monitor="val_hamming", mode="min", verbose=True)],
+        callbacks=[EarlyStopping(monitor="val_f1", mode="max", verbose=True)],
         auto_lr_find=True,
     )
     model = TextClassifier(
@@ -300,6 +302,11 @@ def make_classifier(
         validate_on_generated_tgt=validate_on_generated_tgt,
     )
     trainer.fit(model)
+    print("src test:")
+    print(evaluate_classifier(trainer, model, "src"))
+
+    print("tgt test:")
+    print(evaluate_classifier(trainer, model, "tgt"))
     return trainer, model
 
 
@@ -311,20 +318,3 @@ def evaluate_classifier(trainer, model, src_or_tgt: str):
         model.enable_tgt_test_mode()
         tgt_test = trainer.test(model, verbose=True)
         return tgt_test
-
-
-trainer, model = make_classifier(
-    "lat", "spa", use_embeddings=False, validate_on_generated_tgt=False
-)
-
-print(evaluate_classifier(trainer, model, "src"))
-print(evaluate_classifier(trainer, model, "tgt"))
-
-xs = [
-    ("src", "canis"),
-    (
-        "src",
-        "canibus",
-    ),
-    ("src", "cane"),
-]

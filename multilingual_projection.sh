@@ -72,6 +72,3 @@ else
 
     echo "Wrote minimal seed dictionary to ${TRAIN_DICT}"
 fi
-
-TGT_TRAIN_PREDICTION_MODEL_OUTPUT="./data/evaluation/${SRC}_${TGT}_whole_PROJECTOR/${TGT}_test_predictions_tgt.tsv"
-python3 ./src/nearest_neighbors/classifiers.py "" "" "" "" "$TRAIN_UNIMORPH_SRC" "$VALID_UNIMORPH_SRC" "$TEST_UNIMORPH_SRC" "" "" --tgt_unimorph_test_fp "$TEST_UNIMORPH_TGT" --output_tgt_unimorph_test_fp "${TGT_TRAIN_PREDICTION_MODEL_OUTPUT}" --dictionary_mode="TRUE" --dictionary_fp="${TRAIN_DICT}" --project_and_bootstrap "TRUE" > $PREDICTION_MODEL_EVALUATION
