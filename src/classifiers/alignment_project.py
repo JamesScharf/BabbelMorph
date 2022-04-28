@@ -185,7 +185,7 @@ class AlignmentDictionary(object):
         pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
 
         for pt in pred_type:
-            fp = f"./data/unimorph/generated/{self.tgt_iso}.{pt}"
+            fp = f"./data/unimorph/generated/{self.src_iso}_{self.tgt_iso}.{pt}"
 
             out_f = open(fp, "w")
 

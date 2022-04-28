@@ -150,6 +150,26 @@ def data_split(
 
     # set random seed
     random.seed(42)
+
+    unique_lemmas = set()
+
+    for ln in tqdm(combo_f, desc="Data split"):
+        lemma = ln.split("\t")[0]
+        unique_lemmas.add(lemma)
+
+    for lemma in list(unique_lemmas):
+        r = random.uniform(0, 1)
+        if r < 0.7:  # Train
+            train_lemma.add(lemma)
+        elif r >= 0.7 and r < 0.85:  # valid
+            valid_lemma.add(lemma)
+        elif r >= 0.85:
+            test_lemma.add(lemma)
+        else:
+            print(r)
+
+    combo_f.close()
+    combo_f = open(combo_fp, "r")
     for ln in tqdm(combo_f, desc="Data split"):
         if i == 0:
             header = ln
@@ -157,23 +177,26 @@ def data_split(
             test_f.write(header)
             valid_f.write(header)
         else:
+            """
             lemma = ln.split("\t")[0]
-            r = random.uniform(0, 1)
             if lemma in train_lemma:
                 train_f.write(ln)
             elif lemma in valid_lemma:
                 valid_f.write(ln)
-            elif lemma in valid_lemma:
+            elif lemma in test_lemma:
                 test_f.write(ln)
+            else:
+                print("Error")
+                print(lemma)
+            """
+
+            r = random.uniform(0, 1)
             if r < 0.7:  # Train
                 train_f.write(ln)
-                train_lemma.add(lemma)
-            elif r >= 0.7 and r <= 0.8:  # valid
+            elif r >= 0.65 and r < 0.9:  # valid
                 valid_f.write(ln)
-                valid_lemma.add(lemma)
-            else:
+            elif r >= 0.85:
                 test_f.write(ln)
-                test_lemma.add(lemma)
 
         i += 1
 

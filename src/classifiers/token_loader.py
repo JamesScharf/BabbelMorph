@@ -39,7 +39,7 @@ class TokenLoader:
         # add extra for UNK
         return char2index
 
-    def tokens2tensor(self, tokens: List[str], max_len=16) -> torch.tensor:
+    def tokens2tensor(self, tokens: List[str], max_len=12) -> torch.tensor:
         # returns tokens in format needed for pytorch embedding layer
         # only function that the user should be using
 
@@ -52,14 +52,13 @@ class TokenLoader:
                 w = unidecode(w)
 
             for i, c in enumerate(w):
-                # don't allow tokens longer than max_len
-                if i < max_len:
-                    i = self.char2index.get(c, 0)
-                    vectorized.append(i)
+                i = self.char2index.get(c, 0)
+                vectorized.append(i)
             # pad sequence
             padding = [0] * (max_len - len(vectorized))
-            vectorized.extend(padding)
-            t = torch.tensor(vectorized)
+            padding.extend(vectorized)
+            padding = padding[-max_len:]
+            t = torch.tensor(padding)
             index_lst.append(t)
 
         out = torch.vstack(index_lst)
