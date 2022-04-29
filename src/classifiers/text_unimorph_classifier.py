@@ -2,6 +2,7 @@
 # the provided text embeddings
 # Take a multi-output approach
 from json import load
+from multiprocessing import context
 from typing import Dict, List, Set, Tuple
 import torch
 import numpy as np
@@ -35,19 +36,9 @@ class TextClassifier(pl.LightningModule):
         self.tgt_iso = tgt_iso
         self.use_embeds = use_embeds
 
-        if use_embeds:
-            vocab_size = 400
-        else:
-            vocab_size = self.get_vocab_size(self.src_iso)
-        num_outputs = self.get_num_outputs(self.src_iso)
+        self.vocab_size = self.get_vocab_size(self.src_iso)
+        self.num_outputs = self.get_num_outputs(self.src_iso)
 
-        print(self.src_iso)
-        print(self.tgt_iso)
-        print(vocab_size)
-        print(num_outputs)
-        print(embed_dim)
-
-        self.num_outputs = num_outputs
         self.batch_size = 64
         self.embed_dim = embed_dim
 
@@ -58,29 +49,35 @@ class TextClassifier(pl.LightningModule):
         # (many side effects)
 
         self.hidden_size = 128
-        # setup layers
-        if self.use_embeds == False:
-            self.embedding = torch.nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+        # setup layers for token
+        self.token_embedding = torch.nn.Embedding(
+            self.vocab_size, embed_dim, padding_idx=0
+        )
+        self.token_lstm = torch.nn.LSTM(
+            embed_dim,
+            self.hidden_size,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.token_linear = torch.nn.Sequential(
+            torch.nn.Linear(2 * self.hidden_size, 2 * self.num_outputs), torch.nn.ReLU()
+        )
 
-            self.lstm = torch.nn.LSTM(
-                embed_dim,
-                self.hidden_size,
-                num_layers=2,
-                bidirectional=True,
-                batch_first=True,
-            )
-            self.linear = torch.nn.Sequential(
-                torch.nn.Linear(2 * self.hidden_size, self.hidden_size),
-                torch.nn.SiLU(),
-                torch.nn.Linear(self.hidden_size, num_outputs),
-            )
-            # self.dropout = torch.nn.Dropout(0.5)
-        else:
-            self.lstm = torch.nn.LSTM(
-                vocab_size, embed_dim, num_layers=2, bidirectional=True
-            )
-            self.linear = torch.nn.Linear(2 * embed_dim, num_outputs)
-        self.silu = torch.nn.SiLU()
+        # set up layers for embeddings
+        # going to use simple feedforward for this
+
+        self.embedding_reduction = torch.nn.Sequential(
+            torch.nn.Linear(400, 100),
+            torch.nn.ReLU(),
+            torch.nn.Linear(100, 100),
+            torch.nn.ReLU(),
+            torch.nn.Linear(100, self.num_outputs * 2),
+            torch.nn.ReLU(),
+        )
+
+        # now we need a layer to combine the "votes"
+        self.linear_vote = torch.nn.Linear(4 * self.num_outputs, self.num_outputs)
 
         # metrics
         self.f1 = F1Score(num_classes=len(self.one_label2idx), multiclass=False)
@@ -90,12 +87,11 @@ class TextClassifier(pl.LightningModule):
 
     def extract_data_from_dataset(self):
         # obtain label mapper
-        dataset = ud.UniMorphDataset(
-            self.src_iso, self.tgt_iso, use_embeddings=self.use_embeds
-        )
+        dataset = ud.UniMorphDataset(self.src_iso, self.tgt_iso)
         # extract the vectorization method for potential deployment
         # down the road
         self.vect_method = dataset.vect_method
+        self.morph = dataset.morph
         # extract label2idx
         label2idx = dataset.label2idx
         self.idx2label = self.make_idx_to_label(label2idx)
@@ -133,22 +129,27 @@ class TextClassifier(pl.LightningModule):
 
     def forward(self, x):
 
-        if self.use_embeds == False:
+        # handle token stuff first
+        # Process: Embedding --> LSTM --> linear layer with predictions
+        tok_x = self.token_embedding(x[0])
+        tok_x = pack_padded_sequence(
+            tok_x,
+            torch.tensor([12] * len(tok_x)),
+            batch_first=True,
+            enforce_sorted=True,
+        )
+        lstm_output, (hidden, cell) = self.token_lstm(tok_x)
+        tok_hidden = torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)
+        tok_lin_out = self.token_linear(tok_hidden)
 
-            x = self.embedding(x)
-            x = pack_padded_sequence(
-                x, torch.tensor([12] * len(x)), batch_first=True, enforce_sorted=True
-            )
-            lstm_out, (hidden, cell) = self.lstm(x)
-            hidden = torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)
-            l2_out = self.linear(hidden)
-            return l2_out
-        else:
-            lstm_out, _ = self.lstm(x)
+        # now handle contextual embeddings
+        context_embeds = x[1]
+        embed_out = self.embedding_reduction(context_embeds)
 
-            l2_out = self.linear(lstm_out)
-        preds = self.silu(l2_out)
-        return preds
+        # now combine the votes by concatenating them with a
+        # linear layer at the end
+        combo_votes = torch.cat((tok_lin_out, embed_out), dim=1)
+        return self.linear_vote(combo_votes)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -207,24 +208,18 @@ class TextClassifier(pl.LightningModule):
 
     def process_tokens(self, tokens: List[str], src_or_tgt: str) -> torch.Tensor:
         # convert tokens to features
-        if self.use_embeds:
-            token_tensor = self.vect_method.embed_many_and_merge(tokens, src_or_tgt)
-        else:
-            token_tensor = self.vect_method.tokens2tensor(tokens)
+        embeds = self.morph.embed_many_and_merge(tokens, src_or_tgt)
+        token_tensor = self.vect_method.tokens2tensor(tokens)
 
-        return token_tensor
+        return (embeds, token_tensor)
 
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx, log_name="test")
 
-    def make_dataloader(
-        self, src_iso: str, tgt_iso: str, use_embeddings: bool, mode: str
-    ):
+    def make_dataloader(self, src_iso: str, tgt_iso: str, mode: str):
         # mode must be one of "train", "valid", "test"
         print(mode)
-        dataset = ud.UniMorphDataset(
-            src_iso, tgt_iso, use_embeddings=use_embeddings, mode=mode
-        )
+        dataset = ud.UniMorphDataset(src_iso, tgt_iso, mode=mode)
 
         if mode == "train":
             shuffle = True
@@ -236,20 +231,14 @@ class TextClassifier(pl.LightningModule):
         return loader
 
     def train_dataloader(self):
-        return self.make_dataloader(
-            self.src_iso, self.tgt_iso, self.use_embeds, "train_src"
-        )
+        return self.make_dataloader(self.src_iso, self.tgt_iso, "train_src")
 
     def val_dataloader(self):
 
         if self.validate_generated:
-            return self.make_dataloader(
-                self.src_iso, self.tgt_iso, self.use_embeds, "generated_tgt"
-            )
+            return self.make_dataloader(self.src_iso, self.tgt_iso, "generated_tgt")
         else:
-            return self.make_dataloader(
-                self.src_iso, self.tgt_iso, self.use_embeds, "valid_src"
-            )
+            return self.make_dataloader(self.src_iso, self.tgt_iso, "valid_src")
 
     def test_dataloader(self):
 
@@ -257,7 +246,7 @@ class TextClassifier(pl.LightningModule):
             mode = "test_src"
         else:
             mode = "test_tgt"
-        return self.make_dataloader(self.src_iso, self.tgt_iso, self.use_embeds, mode)
+        return self.make_dataloader(self.src_iso, self.tgt_iso, mode)
 
     def get_vocab_size(self, iso: str) -> int:
         fp = f"./data/unimorph/train/{iso}"
@@ -288,15 +277,11 @@ class TextClassifier(pl.LightningModule):
         # convert strings to encodings
         # xs are expected to be in format [(src, TOKEN), (src, token)] or [(tgt, token), (tgt, token)]
 
-        if self.use_embeds:
-            src_or_tgt = xs[0][0]
-            tensorized_x = self.vect_method.embed_many_and_merge(
-                [x[1] for x in xs], src_or_tgt
-            )
-        else:
-            tensorized_x = self.vect_method.tokens2tensor([x[1] for x in xs])
+        src_or_tgt = xs[0][0]
+        morph_x = list(self.morph.embed_many_and_merge([x[1] for x in xs], src_or_tgt))
+        tok_x = list(self.vect_method.tokens2tensor([x[1] for x in xs]))
 
-        y_hat = self(tensorized_x)
+        y_hat = self((tok_x, morph_x))
         label_nums = torch.argmax(y_hat, dim=1)
         # convert those labels to predictions
         labeled_preds: List[Set[str]] = []
@@ -310,16 +295,10 @@ class TextClassifier(pl.LightningModule):
         return labeled_preds
 
 
-def make_classifier(
-    src_iso: str, tgt_iso: str, use_embeddings: bool, validate_on_generated_tgt=False
-):
+def make_classifier(src_iso: str, tgt_iso: str, validate_on_generated_tgt=False):
     # if validate_on_generated_tgt=True, then use the data in unimorph/generated/tgt for
     # validation step
 
-    if use_embeddings:
-        use_embeds_str = "embeds"
-    else:
-        use_embeds_str = "text"
     trainer = pl.Trainer(
         max_epochs=60,
         gpus=1,
@@ -327,19 +306,18 @@ def make_classifier(
         callbacks=[EarlyStopping(monitor="val_loss", mode="min", verbose=True)],
         auto_lr_find=True,
         precision=16,
-        default_root_dir=f"./data/trained_classifiers/{src_iso}_{tgt_iso}_{use_embeds_str}",
+        default_root_dir=f"./data/trained_classifiers/{src_iso}_{tgt_iso}",
     )
     model = TextClassifier(
         src_iso,
         tgt_iso,
         128,
-        use_embeds=use_embeddings,
         validate_on_generated_tgt=validate_on_generated_tgt,
     )
     trainer.tune(model)
     trainer.fit(model)
     trainer.save_checkpoint(
-        f"./data/trained_classifiers/{src_iso}_{tgt_iso}_{use_embeds_str}/final.ckpt"
+        f"./data/trained_classifiers/{src_iso}_{tgt_iso}/final.ckpt"
     )
     return trainer, model
 
@@ -360,23 +338,35 @@ def evaluate_classifier(
     )
     model.eval()
 
-    trainer = pl.Trainer()
+    trainer = pl.Trainer(gpus=1)
     if src_or_tgt == "src":
+        print("Testing on src")
         model.mode = "test_src"
         src_test = trainer.test(model)
-        print(src_test)
         return src_test
     else:
+        print("Testing on tgt")
         model.enable_tgt_test_mode()
-        tgt_test = model.test_step(model)
+        tgt_test = trainer.test(model)
         return tgt_test
 
 
 if __name__ == "__main__":
-    evaluate_classifier(
-        "./data/trained_classifiers/ron_spa_text/final.ckpt",
-        "ron",
-        "spa",
+    print("src")
+    res = evaluate_classifier(
+        "./data/trained_classifiers/mkd_ukr/final.ckpt",
+        "mkd",
+        "ukr",
         False,
         "src",
     )
+    print(res)
+    print("tgt")
+    res = evaluate_classifier(
+        "./data/trained_classifiers/mkd_ukr/final.ckpt",
+        "mkd",
+        "ukr",
+        False,
+        "tgt",
+    )
+    print(res)

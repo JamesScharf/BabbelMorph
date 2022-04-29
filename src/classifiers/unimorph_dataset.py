@@ -14,7 +14,6 @@ class UniMorphDataset(data.Dataset):
         self,
         src_iso: str,
         tgt_iso: str,
-        use_embeddings=False,
         to_ascii=True,
         mode="train_src",
     ):
@@ -22,11 +21,8 @@ class UniMorphDataset(data.Dataset):
         # use_embeddings=False: use char 2 vec
         self.src_iso = src_iso
         self.tgt_iso = tgt_iso
-        self.use_embeds = use_embeddings
-        if use_embeddings:
-            self.vect_method = MorphEmbeddingLoader(src_iso, tgt_iso)
-        else:
-            self.vect_method = TokenLoader(self.src_iso, to_ascii=to_ascii)
+        self.morph = MorphEmbeddingLoader(src_iso, tgt_iso)
+        self.vect_method = TokenLoader(self.src_iso, to_ascii=to_ascii)
 
         self.mode = mode
 
@@ -127,21 +123,18 @@ class UniMorphDataset(data.Dataset):
 
         conv_labels_tensor = torch.tensor(num_labels)
 
-        # now convert tokens by whatever x vectorization method we're using
         src_or_tgt = "src" if iso == self.src_iso else "tgt"
-        if self.use_embeds:
-            token_tensor = self.vect_method.embed_many_and_merge(tokens, src_or_tgt)
-        else:
-            token_tensor = self.vect_method.tokens2tensor(tokens)
+        morph_tensor = self.morph.embed_many_and_merge(tokens, src_or_tgt)
+        token_tensor = self.vect_method.tokens2tensor(tokens)
 
-        return token_tensor, conv_labels_tensor
+        return (token_tensor, morph_tensor), conv_labels_tensor
 
     def __len__(self):
-        return self.active_dataset[0].size()[0]
+        return self.active_dataset[0][0].size()[0]
 
     def __getitem__(self, idx):
 
-        x = self.active_dataset[0][idx]
+        x = (self.active_dataset[0][0][idx], self.active_dataset[0][1][idx])
         y = self.active_dataset[1][idx]
         return x, y
 
@@ -164,17 +157,13 @@ class DataModule(pl.LightningDataModule):
         return loader
 
     def train_dataloader(self):
-        return self.make_dataloader(
-            self.src_iso, self.tgt_iso, self.use_embeds, "train"
-        )
+        return self.make_dataloader(self.src_iso, self.tgt_isos, "train")
 
     def val_dataloder(self):
-        return self.make_dataloader(
-            self.src_iso, self.tgt_iso, self.use_embeds, "valid"
-        )
+        return self.make_dataloader(self.src_iso, self.tgt_isos, "valid")
 
     def test_dataloader(self):
-        return self.make_dataloader(self.src_iso, self.tgt_iso, self.use_embeds, "test")
+        return self.make_dataloader(self.src_iso, self.tgt_iso, "test")
 
     def predict_dataloader(self):
         pass

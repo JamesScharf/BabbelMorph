@@ -84,30 +84,26 @@ class AlignmentDictionary(object):
         # build classifiers
 
         # start out with str classifier
-        src_tokens = [("src", x["src_token"]) for x in d]
-        _, str_classifier = make_classifier(self.src_iso, self.tgt_iso, False)
-        textmodel_src_pred_labels = str_classifier.predict(src_tokens)
-        tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
-        textmodel_tgt_pred_labels = str_classifier.predict(tgt_tokens)
+        # src_tokens = [("src", x["src_token"]) for x in d]
+        # _, str_classifier = make_classifier(self.src_iso, self.tgt_iso, False)
+        # textmodel_src_pred_labels = str_classifier.predict(src_tokens)
+        # tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
+        # textmodel_tgt_pred_labels = str_classifier.predict(tgt_tokens)
 
         # apply embedding classifier
         src_tokens = [("src", x["src_token"]) for x in d]
-        _, embed_classifier = make_classifier(self.src_iso, self.tgt_iso, True)
+        _, embed_classifier = make_classifier(self.src_iso, self.tgt_iso)
         embed_src_pred_labels = embed_classifier.predict(src_tokens)
         tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
         embed_tgt_pred_labels = embed_classifier.predict(tgt_tokens)
 
         # save results
         out: List[Dict[str, Union[str, Set[str]]]] = []
-        for d_entry, txtmod_src, txtmod_tgt, embed_src, embed_tgt in zip(
+        for d_entry, embed_src, embed_tgt in zip(
             d,
-            textmodel_src_pred_labels,
-            textmodel_tgt_pred_labels,
             embed_src_pred_labels,
             embed_tgt_pred_labels,
         ):
-            d_entry["src_token_fts"] = txtmod_src
-            d_entry["tgt_token_fts"] = txtmod_tgt
             d_entry["src_embed_fts"] = embed_src
             d_entry["tgt_embed_fts"] = embed_tgt
 
@@ -124,7 +120,7 @@ class AlignmentDictionary(object):
         # must first run classify!!!
 
         # dimension= src_token_fts tgt_token_fts src_embed_fts tgt_embed_fts
-        pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
+        pred_type = ["src_embed_fts", "tgt_embed_fts"]
 
         data: Dict[str, List[str]] = {}
 
@@ -182,7 +178,7 @@ class AlignmentDictionary(object):
         # save the data to ./unimorph/data/generated/tgt
         # in UniMorph-format
 
-        pred_type = ["src_token_fts", "tgt_token_fts", "src_embed_fts", "tgt_embed_fts"]
+        pred_type = ["src_embed_fts", "tgt_embed_fts"]
 
         for pt in pred_type:
             fp = f"./data/unimorph/generated/{self.src_iso}_{self.tgt_iso}.{pt}"

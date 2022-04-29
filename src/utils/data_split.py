@@ -177,7 +177,6 @@ def data_split(
             test_f.write(header)
             valid_f.write(header)
         else:
-            """
             lemma = ln.split("\t")[0]
             if lemma in train_lemma:
                 train_f.write(ln)
@@ -197,6 +196,7 @@ def data_split(
                 valid_f.write(ln)
             elif r >= 0.85:
                 test_f.write(ln)
+            """
 
         i += 1
 
