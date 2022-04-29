@@ -70,8 +70,6 @@ class TextClassifier(pl.LightningModule):
         self.embedding_reduction = torch.nn.Sequential(
             torch.nn.Linear(400, 100),
             torch.nn.ReLU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ReLU(),
             torch.nn.Linear(100, self.num_outputs * 2),
             torch.nn.ReLU(),
         )
@@ -278,8 +276,10 @@ class TextClassifier(pl.LightningModule):
         # xs are expected to be in format [(src, TOKEN), (src, token)] or [(tgt, token), (tgt, token)]
 
         src_or_tgt = xs[0][0]
-        morph_x = list(self.morph.embed_many_and_merge([x[1] for x in xs], src_or_tgt))
-        tok_x = list(self.vect_method.tokens2tensor([x[1] for x in xs]))
+        morph_x = torch.tensor(
+            self.morph.embed_many_and_merge([x[1] for x in xs], src_or_tgt)
+        )
+        tok_x = torch.tensor(self.vect_method.tokens2tensor([x[1] for x in xs]))
 
         y_hat = self((tok_x, morph_x))
         label_nums = torch.argmax(y_hat, dim=1)
@@ -326,14 +326,12 @@ def evaluate_classifier(
     model_checkpt_path: str,
     src_iso: str,
     tgt_iso: str,
-    use_embeds: bool,
     src_or_tgt: str,
 ):
     model = TextClassifier.load_from_checkpoint(
         model_checkpt_path,
         src_iso=src_iso,
         tgt_iso=tgt_iso,
-        use_embeds=use_embeds,
         embed_dim=128,
     )
     model.eval()
@@ -343,29 +341,29 @@ def evaluate_classifier(
         print("Testing on src")
         model.mode = "test_src"
         src_test = trainer.test(model)
-        return src_test
+        return src_test[0]
     else:
         print("Testing on tgt")
         model.enable_tgt_test_mode()
         tgt_test = trainer.test(model)
-        return tgt_test
+        return tgt_test[0]
 
 
 if __name__ == "__main__":
     print("src")
     res = evaluate_classifier(
-        "./data/trained_classifiers/mkd_ukr/final.ckpt",
-        "mkd",
-        "ukr",
+        "./data/trained_classifiers/nno_swe/final.ckpt",
+        "nno",
+        "swe",
         False,
         "src",
     )
     print(res)
     print("tgt")
     res = evaluate_classifier(
-        "./data/trained_classifiers/mkd_ukr/final.ckpt",
-        "mkd",
-        "ukr",
+        "./data/trained_classifiers/nno_swe/final.ckpt",
+        "nno",
+        "swe",
         False,
         "tgt",
     )

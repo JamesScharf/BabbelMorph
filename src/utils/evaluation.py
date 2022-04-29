@@ -89,12 +89,10 @@ def load_unimorph(
 
 def get_fps(isos: str) -> List[str]:
     base = f"./data/unimorph/generated/{isos}."
-    src_emb = base + "src_embed_fts"
-    tgt_emb = base + "tgt_embed_fts"
-    src_token = base + "src_token_fts"
-    tgt_token = base + "tgt_token_fts"
+    src_emb = base + "src_labels"
+    tgt_emb = base + "tgt_labels"
 
-    return src_emb, tgt_emb, src_token, tgt_token
+    return src_emb, tgt_emb
 
 
 def evaluate_all(iso: str):
