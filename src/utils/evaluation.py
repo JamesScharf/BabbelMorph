@@ -51,7 +51,8 @@ def load_unimorph(
     fp: str,
     fp2=None,
     fp3=None,
-    allowed_dimensions={"Case", "PartOfSpeech", "Person", "Number"},
+    allowed_dimensions={"Case", "Person", "Number", "Gender", "Mood", "Tense"}
+    # allowed_dimensions={"Case", "PartOfSpeech", "Person", "Number"},
 ):
     f = open(fp, "r")
     lns = f.readlines()
@@ -104,10 +105,12 @@ def evaluate_all(iso: str):
 
     allowed_dimensions = [
         {"Case"},
-        {"PartOfSpeech"},
         {"Person"},
         {"Number"},
-        {"Case", "PartOfSpeech", "Person", "Number"},
+        {"Gender"},
+        {"Mood"},
+        {"Tense"},
+        {"Case", "Person", "Number", "Gender", "Mood", "Tense"},
     ]
 
     cached_sync: Dict[str, float] = {}
@@ -160,7 +163,7 @@ def evaluate_all(iso: str):
     return df
 
 
-def strawman(iso, fp, allowed_dimensions={"Case", "PartOfSpeech", "Person", "Number"}):
+def strawman(iso, fp, allowed_dimensions=set()):
     # compute metrics for some straw-man task
     src_iso = iso.split("_")[0]
     tgt_iso = iso.split("_")[1]

@@ -66,7 +66,8 @@ def combine_duplicates(in_fp: str, out_fp: str, morfessor_model):
     out_f = open(out_fp, "w")
 
     fm = feature_map()
-    allowed_dimensions = {"Case", "PartOfSpeech", "Person", "Number"}
+    # allowed_dimensions = {"Case", "PartOfSpeech", "Person", "Number"}
+    allowed_dimensions = {"Case", "Person", "Number", "Gender", "Mood", "Tense"}
     ft_index_map = feature_index_map(allowed_dimensions, fm)
 
     for token, label in zip(tokens, labels):

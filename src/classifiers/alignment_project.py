@@ -37,6 +37,18 @@ class AlignmentDictionary(object):
         merged_d = self.merge_duplicates(d_w_fts)
         self.save_final(merged_d)
 
+        model_save_fp = (
+            f"./data/trained_classifiers/{self.src_iso}_{self.tgt_iso}/final.ckpt"
+        )
+        src_test = evaluate_classifier(model_save_fp, self.src_iso, self.tgt_iso, "src")
+        f = open("./data/classifier_training_metrics/src_metrics.txt", "a+")
+        f1 = src_test["test_f1"]
+        loss = src_test["test_loss"]
+        ham = src_test["test_hamming"]
+        ln = f"{self.src_iso}\t{self.tgt_iso}\t{f1}\t{ham}\t{loss}\n"
+        f.write(ln)
+        f.close()
+
     def load_dictionary(self, fp) -> List[Dict[str, Union[str, Set[str]]]]:
         f = open(fp, "r")
         lns = f.readlines()
@@ -96,18 +108,6 @@ class AlignmentDictionary(object):
         pred_labels_src = classifier.predict(src_tokens)
         tgt_tokens = [("tgt", x["tgt_token"]) for x in d]
         pred_labels_tgt = classifier.predict(tgt_tokens)
-
-        model_save_fp = (
-            f"./data/trained_classifiers/{self.src_iso}_{self.tgt_iso}/final.ckpt"
-        )
-        src_test = evaluate_classifier(model_save_fp, self.src_iso, self.tgt_iso, "src")
-        f = open("./data/classifier_training_metrics/src_metrics.txt", "a+")
-        f1 = src_test["test_f1"]
-        loss = src_test["test_loss"]
-        ham = src_test["test_hamming"]
-        ln = f"{self.src_iso}\t{self.tgt_iso}\t{f1}\t{ham}\t{loss}"
-        f.write(ln)
-        f.close()
 
         # save results
         out: List[Dict[str, Union[str, Set[str]]]] = []
