@@ -425,7 +425,12 @@ def evaluate(iso, fp, allowed_dimensions):
         t_str = ";".join(t)
         p_str = ";".join(p)
 
-        # print(term + "\t" + t_str + "\t" + p_str)
+        if len(allowed_dimensions) != 1:
+            print(term)
+            print("\ttrue:" + t_str)
+            print("\tpred:" + p_str)
+            print()
+            # print(term + "\t" + t_str + "\t" + p_str)
 
     f1 = round(f1_score(y_hat, y, multiclass=False).item(), 3)
     ham = round(hamming_distance(y_hat, y).item(), 3)

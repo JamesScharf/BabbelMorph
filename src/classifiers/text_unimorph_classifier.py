@@ -1,6 +1,7 @@
 # Make a classifier for UniMorph features utilizing only
 # the provided text embeddings
 # Take a multi-output approach
+from genericpath import exists
 from json import load
 from multiprocessing import context
 from typing import Dict, List, Set, Tuple
@@ -13,6 +14,7 @@ from torchmetrics import F1Score, HammingDistance
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.utils.data import ConcatDataset
 
 
 class TextClassifier(pl.LightningModule):
@@ -23,6 +25,8 @@ class TextClassifier(pl.LightningModule):
         embed_dim,
         use_embeds=False,
         validate_on_generated_tgt=False,
+        train_on_generated=False,
+        annotation_source=None,
     ):
 
         # if validate_on_generated_tgt=True, then our validation script will use TARGET data
@@ -30,6 +34,8 @@ class TextClassifier(pl.LightningModule):
         super(TextClassifier, self).__init__()
 
         self.validate_generated = validate_on_generated_tgt
+        self.annotation_source = annotation_source
+        self.train_generated = train_on_generated
         # self.lr = 3e-4
         self.lr = 0.001
         self.src_iso = src_iso
@@ -214,12 +220,24 @@ class TextClassifier(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx, log_name="test")
 
-    def make_dataloader(self, src_iso: str, tgt_iso: str, mode: str):
+    def make_dataloader(
+        self, src_iso: str, tgt_iso: str, mode: str, use_generated_tgt=False
+    ):
         # mode must be one of "train", "valid", "test"
-        print(mode)
         dataset = ud.UniMorphDataset(src_iso, tgt_iso, mode=mode)
 
-        if mode == "train":
+        if mode == "train_src" and use_generated_tgt:
+
+            # then add generated data
+            gen_dataset = ud.UniMorphDataset(
+                self.src_iso,
+                self.tgt_iso,
+                mode="generated_tgt",
+                annotation_source=self.annotation_source,
+            )
+            dataset = ConcatDataset([dataset, gen_dataset])
+
+        if mode == "train_src":
             shuffle = True
         else:
             shuffle = False
@@ -229,7 +247,13 @@ class TextClassifier(pl.LightningModule):
         return loader
 
     def train_dataloader(self):
-        return self.make_dataloader(self.src_iso, self.tgt_iso, "train_src")
+        train_src = self.make_dataloader(
+            self.src_iso,
+            self.tgt_iso,
+            "train_src",
+            use_generated_tgt=self.train_generated,
+        )
+        return train_src
 
     def val_dataloader(self):
 
@@ -295,30 +319,45 @@ class TextClassifier(pl.LightningModule):
         return labeled_preds
 
 
-def make_classifier(src_iso: str, tgt_iso: str, validate_on_generated_tgt=False):
+def make_classifier(
+    src_iso: str, tgt_iso: str, train_on_generated=False, annotation_source=None
+):
     # if validate_on_generated_tgt=True, then use the data in unimorph/generated/tgt for
     # validation step
 
-    trainer = pl.Trainer(
-        max_epochs=60,
-        gpus=1,
-        progress_bar_refresh_rate=20,
-        callbacks=[EarlyStopping(monitor="val_loss", mode="min", verbose=True)],
-        auto_lr_find=True,
-        precision=16,
-        default_root_dir=f"./data/trained_classifiers/{src_iso}_{tgt_iso}",
-    )
-    model = TextClassifier(
-        src_iso,
-        tgt_iso,
-        128,
-        validate_on_generated_tgt=validate_on_generated_tgt,
-    )
-    trainer.tune(model)
-    trainer.fit(model)
-    trainer.save_checkpoint(
-        f"./data/trained_classifiers/{src_iso}_{tgt_iso}/final.ckpt"
-    )
+    if train_on_generated and annotation_source != None:
+        model_fp = f"./data/trained_classifiers/{src_iso}_{tgt_iso}_bootstrapped_{annotation_source}"
+    else:
+        model_fp = f"./data/trained_classifiers/{src_iso}_{tgt_iso}"
+    print(model_fp)
+
+    if exists(model_fp):
+        model = TextClassifier.load_from_checkpoint(model_fp)
+        model.eval()
+        trainer = None
+    else:
+        trainer = pl.Trainer(
+            max_epochs=60,
+            gpus=1,
+            progress_bar_refresh_rate=20,
+            callbacks=[EarlyStopping(monitor="val_loss", mode="min", verbose=True)],
+            auto_lr_find=True,
+            precision=16,
+            default_root_dir=model_fp,
+        )
+        model = TextClassifier(
+            src_iso,
+            tgt_iso,
+            128,
+            validate_on_generated_tgt=False,
+            train_on_generated=train_on_generated,
+            annotation_source=annotation_source,
+        )
+        trainer.tune(model)
+        trainer.fit(model)
+        trainer.save_checkpoint(
+            f"./data/trained_classifiers/{src_iso}_{tgt_iso}/final.ckpt"
+        )
     return trainer, model
 
 

@@ -42,4 +42,10 @@ source multilingual_embedding.sh $SRC $TGT "suffix4" > /dev/null
 source multilingual_embedding.sh $SRC $TGT "suffix5" > /dev/null
 
 source multilingual_projection.sh $SRC $TGT
-python3 src/classifiers/alignment_project.py --fp "./data/dictionaries/${SRC}_${TGT}_whole.dict" --src "${SRC}" --tgt "${TGT}"
+#python3 src/classifiers/alignment_project.py --fp "./data/dictionaries/${SRC}_${TGT}_whole.dict" --src "${SRC}" --tgt "${TGT}"
+
+PRED_TEST_FP_SRC=./data/unimorph/predicted_test/${SRC}_${TGT}.src_labels
+python3 src/classifiers/bootstrap_classifier.py --src "${SRC}" --tgt "${TGT}" --output "${PRED_TEST_FP_SRC}" --src_or_tgt_gen "src"
+
+PRED_TEST_FP_TGT=./data/unimorph/predicted_test/${SRC}_${TGT}.tgt_labels
+python3 src/classifiers/bootstrap_classifier.py --src "${SRC}" --tgt "${TGT}" --output "${PRED_TEST_FP_TGT}" --src_or_tgt_gen "tgt"
